@@ -1,122 +1,74 @@
-import { useState } from 'react'
-import reactLogo from './assets/react.svg'
-import viteLogo from './assets/vite.svg'
-import heroImg from './assets/hero.png'
-import './App.css'
+import { useState } from "react";
+import { checkSystem } from "./api";
+import type { Category } from "./api";
 
-function App() {
-  const [count, setCount] = useState(0)
+type UiState = "idle" | "loading" | "success" | "error";
+
+export default function App() {
+  const [state, setState] = useState<UiState>("idle");
+  const [categories, setCategories] = useState<Category[]>([]);
+
+  async function handleCheck() {
+    setState("loading");
+    try {
+      const result = await checkSystem();
+      setCategories(result.categories);
+      setState("success");
+    } catch {
+      setCategories([]);
+      setState("error");
+    }
+  }
 
   return (
-    <>
-      <section id="center">
-        <div className="hero">
-          <img src={heroImg} className="base" width="170" height="179" alt="" />
-          <img src={reactLogo} className="framework" alt="React logo" />
-          <img src={viteLogo} className="vite" alt="Vite logo" />
-        </div>
-        <div>
-          <h1>Get started</h1>
+    <div className="container py-5" style={{ maxWidth: 640 }}>
+      <h1 className="h3 mb-4">
+        TokTickIT <span className="text-success">IT Service Desk</span>
+      </h1>
+
+      <button
+        className="btn btn-success"
+        onClick={handleCheck}
+        disabled={state === "loading"}
+      >
+        {state === "loading" ? "Loading..." : "Check System"}
+      </button>
+
+      {state === "loading" && (
+        <p className="mt-3 text-muted" role="status">
+          &#8987; Loading...
+        </p>
+      )}
+
+      {state === "success" && (
+        <div className="mt-4">
           <p>
-            Edit <code>src/App.tsx</code> and save to test <code>HMR</code>
+            <strong>System Status:</strong>{" "}
+            <span className="text-success fw-bold">Online</span>
           </p>
-        </div>
-        <button
-          type="button"
-          className="counter"
-          onClick={() => setCount((count) => count + 1)}
-        >
-          Count is {count}
-        </button>
-      </section>
 
-      <div className="ticks"></div>
-
-      <section id="next-steps">
-        <div id="docs">
-          <svg className="icon" role="presentation" aria-hidden="true">
-            <use href="/icons.svg#documentation-icon"></use>
-          </svg>
-          <h2>Documentation</h2>
-          <p>Your questions, answered</p>
-          <ul>
-            <li>
-              <a href="https://vite.dev/" target="_blank">
-                <img className="logo" src={viteLogo} alt="" />
-                Explore Vite
-              </a>
-            </li>
-            <li>
-              <a href="https://react.dev/" target="_blank">
-                <img className="button-icon" src={reactLogo} alt="" />
-                Learn more
-              </a>
-            </li>
-          </ul>
+          <h2 className="h5 mt-4">Supported Request Categories</h2>
+          {categories.length === 0 ? (
+            <p className="text-muted">No categories found.</p>
+          ) : (
+            <ol className="mt-2">
+              {categories.map((category) => (
+                <li key={category.id}>{category.name}</li>
+              ))}
+            </ol>
+          )}
         </div>
-        <div id="social">
-          <svg className="icon" role="presentation" aria-hidden="true">
-            <use href="/icons.svg#social-icon"></use>
-          </svg>
-          <h2>Connect with us</h2>
-          <p>Join the Vite community</p>
-          <ul>
-            <li>
-              <a href="https://github.com/vitejs/vite" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#github-icon"></use>
-                </svg>
-                GitHub
-              </a>
-            </li>
-            <li>
-              <a href="https://chat.vite.dev/" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#discord-icon"></use>
-                </svg>
-                Discord
-              </a>
-            </li>
-            <li>
-              <a href="https://x.com/vite_js" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#x-icon"></use>
-                </svg>
-                X.com
-              </a>
-            </li>
-            <li>
-              <a href="https://bsky.app/profile/vite.dev" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#bluesky-icon"></use>
-                </svg>
-                Bluesky
-              </a>
-            </li>
-          </ul>
-        </div>
-      </section>
+      )}
 
-      <div className="ticks"></div>
-      <section id="spacer"></section>
-    </>
-  )
+      {state === "error" && (
+        <div className="alert alert-danger mt-4" role="alert">
+          <p className="mb-1">
+            <strong>System Status:</strong>{" "}
+            <span className="fw-bold">Offline</span>
+          </p>
+          <p className="mb-0">Unable to connect to TokTickIT API</p>
+        </div>
+      )}
+    </div>
+  );
 }
-
-export default App
