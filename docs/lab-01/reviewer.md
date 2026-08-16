@@ -1,7 +1,7 @@
 # Lab 1 - Peer Review Record
 
-**Author:** Yohann Raphael Axel Moscato - <student id> - GitHub: @Yosko91
-**Peer reviewer:** <partner name> - <student id> - GitHub: @<username>
+**Author:** Yohann Raphael Axel Moscato - 69540460011 - GitHub: @Yosko91
+**Peer reviewer:** Heloise Savoye - <student id>69540460018 - GitHub: @heloisesavoye
 
 ## Pull Requests I authored (reviewed by my partner)
 
@@ -13,10 +13,10 @@
 | #4 | `feature/4-category-list` | <PR url> | Approved |
 
 **Review comment I received:**
-<paste your partner's actual comment>
+The findMany with orderBy: id is clean. One small thing: the 500 error message could be a bit more specific, but it's fine for this lab.
 
 **How I responded:**
-<what you changed, and on which commit>
+Good point. I kept the client-facing message generic so we don't leak internal details, but I added a console.error on the server side for debugging. I'll make it more detailed in Lab 2.
 
 ## Pull Requests I reviewed for my partner
 
@@ -25,7 +25,7 @@
 |    |        |      |            |
 
 **Comment I gave:**
-<paste your actual comment>
+tests pass for me too, good coverage on the error case
 
 **My partner's response:**
-<what they changed>
+Thanks for your response !
