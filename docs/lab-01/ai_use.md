@@ -1,7 +1,7 @@
 # Lab 1 - AI Use and Reflection
 
 **IDE / agent used:** Windsurf, with its integrated AI coding assistant.
-**LLM used:** <model name> - thinking level <low / medium / high>.
+**LLM used:** Claude - thinking level high.
 
 ## Selected key prompts
 
