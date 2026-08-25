@@ -25,13 +25,16 @@ const RELATED_SYSTEM_NAMES = [
 // Lab 2 - Development Requesters (BR-05): a temporary, non-authenticated
 // testing identity. Five active + one inactive, so the "inactive requesters
 // never appear in the selector" rule (BR-06/BR-30) has real seed data to
-// prove it against.
+// prove it against. Priya Nair is reserved for the My Tickets empty-state
+// evidence (docs/lab-02/ui-spec.md section 14) - no test or demo script
+// should ever create a Ticket for this Requester.
 const REQUESTERS: { name: string; email: string; isActive: boolean }[] = [
   { name: "Jennifer Anderson", email: "jennifer.anderson@toktickit.dev", isActive: true },
   { name: "Sarah Johnson", email: "sarah.johnson@toktickit.dev", isActive: true },
   { name: "David Lee", email: "david.lee@toktickit.dev", isActive: true },
   { name: "Somchai Charoensuk", email: "somchai.charoensuk@toktickit.dev", isActive: true },
   { name: "Nutcha Srisuwan", email: "nutcha.srisuwan@toktickit.dev", isActive: true },
+  { name: "Priya Nair", email: "priya.nair@toktickit.dev", isActive: true },
   { name: "Alex Turner", email: "alex.turner@toktickit.dev", isActive: false },
 ];
 
