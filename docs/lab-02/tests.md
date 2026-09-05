@@ -134,16 +134,26 @@ npx playwright test
 
 ## 6. Final Results
 
-Filled in after the full suite is run on `main` (paste raw terminal output). See
-`docs/lab-02/ai-use.md` is not the right place — the actual pass/fail terminal output for the
-submission goes directly into the PDF (Answer Part 3), and a copy of the final summary line
-count is kept here for traceability:
+Run on the integration branch before the release PR to `main` (full raw terminal output is
+pasted into the submission PDF, Answer Part 3):
 
 ```
-<paste `npm test` server summary here>
-<paste `npm test` client summary here>
-<paste `npx playwright test` summary here>
+server> npm test
+ Test Files  10 passed (10)
+      Tests  67 passed (67)
+
+client> npm test
+ Test Files  5 passed (5)
+      Tests  22 passed (22)
+
+> npx playwright test
+Running 16 tests using 1 worker
+  16 passed (30.3s)
 ```
+
+Total: **105/105 automated tests passing** (67 backend unit/API, 22 frontend component, 16
+Playwright E2E/visual), 0 skipped, 0 disabled. Re-run immediately before the release PR to
+confirm the count still matches on `main`.
 
 ## 7. Known Limitations or Deferred Tests
 
