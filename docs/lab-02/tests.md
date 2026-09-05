@@ -17,6 +17,10 @@
   field states, and no-horizontal-scroll.
 - **E2E** (Playwright, `e2e/lab-02/requester-ticket-flow.spec.ts`): drives the real running app
   (client + server + database) through full user journeys.
+- **Submission evidence** (Playwright, `e2e/lab-02/submission-evidence.spec.ts`): drives the same
+  real app to capture every screenshot the submission needs, so each state in the PDF is a real
+  application state. `server/scripts/lab-02-evidence.ts` (`npm run evidence`) prints the matching
+  API and database evidence.
 
 Every Acceptance Criterion in `specification.md` §9 maps to at least one row below.
 
@@ -75,6 +79,7 @@ Every Acceptance Criterion in `specification.md` §9 maps to at least one row be
 | E2E-02 | E2E | AC-01, full flow | New ticket is then findable in My Tickets by its Ticket Number | ticket row visible after search | `e2e/lab-02/requester-ticket-flow.spec.ts` | Pass |
 | E2E-03 | E2E | AC-14, AC-19 | Add an attachment on Ticket Detail, then soft-remove it with a reason | attachment shows Active then Removed with the reason | `e2e/lab-02/requester-ticket-flow.spec.ts` | Pass |
 | E2E-04 | E2E | AC-03, AC-21 | Switch Requester and confirm the previous requester's ticket is unreachable | My Tickets no longer lists it; direct detail URL shows not-found | `e2e/lab-02/requester-ticket-flow.spec.ts` | Pass |
+| E2E-05 | E2E | AC-14, BR-25 | An attachment selected on Create Ticket is uploaded with the new ticket | file appears as an active attachment on the new Ticket Detail | `e2e/lab-02/requester-ticket-flow.spec.ts` | Pass |
 | VIS-01 | Visual | AC-23 | Desktop/tablet/mobile screenshots of Create Ticket, My Tickets, Ticket Detail | no horizontal scroll at any width; screenshots saved under `artifacts/lab-02/screenshots/` | `e2e/lab-02/responsive-visual.spec.ts` | Pass |
 | VIS-02 | Visual | — | Required CSS state classes present (`zen-field--error`, `zen-btn.is-busy`, `zen-badge`) | assertions on class presence at key states | `e2e/lab-02/responsive-visual.spec.ts` | Pass |
 
@@ -95,7 +100,7 @@ Every Acceptance Criterion in `specification.md` §9 maps to at least one row be
 | AC-11 | API-11 |
 | AC-12 | API-12, UI-11 |
 | AC-13 | API-13 |
-| AC-14 | API-18, E2E-03 |
+| AC-14 | API-18, E2E-03, E2E-05 |
 | AC-15 | API-19 |
 | AC-16 | API-20, UI-07 |
 | AC-17 | API-21, UI-14 |
@@ -134,16 +139,26 @@ npx playwright test
 
 ## 6. Final Results
 
-Filled in after the full suite is run on `main` (paste raw terminal output). See
-`docs/lab-02/ai-use.md` is not the right place — the actual pass/fail terminal output for the
-submission goes directly into the PDF (Answer Part 3), and a copy of the final summary line
-count is kept here for traceability:
+Run on the integration branch before the release PR to `main` (full raw terminal output is
+pasted into the submission PDF, Answer Part 3):
 
 ```
-<paste `npm test` server summary here>
-<paste `npm test` client summary here>
-<paste `npx playwright test` summary here>
+server> npm test
+ Test Files  10 passed (10)
+      Tests  67 passed (67)
+
+client> npm test
+ Test Files  5 passed (5)
+      Tests  22 passed (22)
+
+> npx playwright test
+Running 23 tests using 1 worker
+  23 passed (44.4s)
 ```
+
+Total: **112/112 automated tests passing** (67 backend unit/API, 22 frontend component, 23
+Playwright E2E/visual/evidence), 0 skipped, 0 disabled. Re-run immediately before the release PR to
+confirm the count still matches on `main`.
 
 ## 7. Known Limitations or Deferred Tests
 

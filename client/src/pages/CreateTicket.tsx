@@ -66,10 +66,15 @@ export function CreateTicket() {
   }, []);
 
   function handleAddFiles(fileList: FileList) {
+    // Copy the FileList now, not inside the state updater: the input clears
+    // its value right after this handler returns, and a FileList is live, so
+    // reading it later would find it empty.
+    const incoming = Array.from(fileList);
+
     setFiles((prev) => {
       let validCount = prev.filter((f) => !f.error).length;
       const next = [...prev];
-      for (const file of Array.from(fileList)) {
+      for (const file of incoming) {
         if (validCount >= MAX_ACTIVE_ATTACHMENTS) {
           next.push({ file, error: `Maximum of ${MAX_ACTIVE_ATTACHMENTS} attachments reached` });
           continue;
