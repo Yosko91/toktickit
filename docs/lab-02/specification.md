@@ -361,3 +361,11 @@ agent):
 - **`Category`/`RelatedSystem` gain `isActive`**: not requested by name in the handout's minimal
   example schema, but required to make "retrieve active Categories/Related Systems" (§6 of the
   handout) a meaningful, testable query rather than always returning everything.
+- **The Lab 1 "Check System" placeholder screen is retired**: `client/src/App.tsx` now renders
+  the real Requester-facing application shell (router + navigation) required by this sprint,
+  which fully supersedes the Lab 1 vertical-slice landing page. Its Lab 1 UI test
+  (`client/tests/lab-01/App.test.tsx`) tested behavior that no longer exists in the app and was
+  removed rather than left failing; the health/categories capabilities it exercised are retained
+  and are now covered far more thoroughly by the Lab 2 test suite. Lab 1's own grading already
+  ran against the `main` state at Lab 1 submission time, so this is expected sprint-to-sprint
+  evolution, not a regression.
