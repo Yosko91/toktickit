@@ -6,8 +6,91 @@ generator client {
   provider = "prisma-client-js"
 }
 
+enum RequestedPriority {
+  LOW
+  MEDIUM
+  HIGH
+}
+
+// Lab 2 only ever writes/reads NEW. The remaining values are modeled now so
+// Lab 3/4 workflow features (resolve/close/reopen/cancel) need no breaking
+// migration later - see specification.md BR-02 and "Assumptions and Decisions".
+enum TicketStatus {
+  NEW
+  OPEN
+  IN_PROGRESS
+  PENDING
+  RESOLVED
+  CLOSED
+  CANCELLED
+}
+
 model Category {
   id        Int      @id @default(autoincrement())
   name      String   @unique
+  isActive  Boolean  @default(true)
   createdAt DateTime @default(now())
+  tickets   Ticket[]
+}
+
+// Lab 2 - the specific service, application, device, or platform a Ticket is about.
+model RelatedSystem {
+  id        Int      @id @default(autoincrement())
+  name      String   @unique
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  tickets   Ticket[]
+}
+
+// Lab 2 - the "Development Requester" stand-in for a logged-in user (BR-05).
+// This is a testing mechanism, not an authenticated account: no password,
+// session, or role lives on this model. Lab 3 introduces real authentication
+// against this same identity (BR-33).
+model RequesterUser {
+  id                 Int          @id @default(autoincrement())
+  name               String
+  email              String       @unique
+  isActive           Boolean      @default(true)
+  createdAt          DateTime     @default(now())
+  tickets            Ticket[]
+  removedAttachments Attachment[]
+}
+
+model Ticket {
+  id                Int               @id @default(autoincrement())
+  ticketNumber      String            @unique
+  requesterId       Int
+  requester         RequesterUser     @relation(fields: [requesterId], references: [id])
+  categoryId        Int
+  category          Category          @relation(fields: [categoryId], references: [id])
+  relatedSystemId   Int
+  relatedSystem     RelatedSystem     @relation(fields: [relatedSystemId], references: [id])
+  summary           String
+  description       String
+  requestedPriority RequestedPriority
+  currentStatus     TicketStatus      @default(NEW)
+  createdAt         DateTime          @default(now())
+  updatedAt         DateTime          @updatedAt
+  attachments       Attachment[]
+
+  @@index([requesterId])
+  @@index([categoryId])
+  @@index([createdAt])
+}
+
+model Attachment {
+  id             Int            @id @default(autoincrement())
+  ticketId       Int
+  ticket         Ticket         @relation(fields: [ticketId], references: [id])
+  originalName   String
+  storedFilename String
+  mimeType       String
+  sizeBytes      Int
+  uploadedAt     DateTime       @default(now())
+  removedAt      DateTime?
+  removedReason  String?
+  removedById    Int?
+  removedBy      RequesterUser? @relation(fields: [removedById], references: [id])
+
+  @@index([ticketId])
 }
