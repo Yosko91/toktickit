@@ -54,6 +54,32 @@ test.describe("Requester ticket flow (E2E)", () => {
     await expect(attachmentRow.getByRole("button", { name: /download/i })).toHaveCount(0);
   });
 
+  test("E2E-05: an attachment selected on Create Ticket is uploaded with the new ticket", async ({ page }) => {
+    await selectRequester(page, REQUESTER_A);
+
+    await page.goto("/tickets/new");
+    await expect(page.getByLabel(/^category/i)).toBeVisible();
+    await page.getByLabel(/choose attachment files/i).setInputFiles(path.join(__dirname, "fixtures", "sample.png"));
+    await expect(page.locator(".zen-attachment-row").filter({ hasText: "sample.png" })).toBeVisible();
+
+    await page.getByLabel(/^category/i).selectOption({ index: 1 });
+    await page.getByLabel(/related system/i).selectOption({ index: 1 });
+    await page.getByLabel(/ticket summary/i).fill(uniqueSummary("with-attachment"));
+    await page
+      .getByLabel(/^description/i)
+      .fill("This ticket is created with one attachment already selected on the create form.");
+    await page.getByRole("button", { name: /submit ticket/i }).click();
+
+    await expect(page.locator(".zen-confirmation-number")).toBeVisible();
+    await page.getByRole("button", { name: /view ticket/i }).click();
+    await page.waitForURL(/\/tickets\/\d+$/);
+
+    // BR-25: the staged file is uploaded right after the Ticket is created.
+    const uploadedRow = page.locator(".zen-attachment-row").filter({ hasText: "sample.png" });
+    await expect(uploadedRow).toBeVisible();
+    await expect(uploadedRow.getByText("Active", { exact: true })).toBeVisible();
+  });
+
   test("E2E-04: switching Requester hides the previous Requester's ticket", async ({ page }) => {
     await selectRequester(page, REQUESTER_A);
     await createTicket(page, uniqueSummary("ownership"));
