@@ -16,6 +16,10 @@ server/prisma/*.db
 # Lab 2 - uploaded attachment files (metadata lives in PostgreSQL, not git)
 server/uploads/
 
+# Lab 2 - Playwright run artifacts (not the curated screenshots in artifacts/lab-02/)
+playwright-report/
+test-results/
+
 # logs & OS
 *.log
 .DS_Store
