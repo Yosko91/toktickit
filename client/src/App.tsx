@@ -1,74 +1,28 @@
-import { useState } from "react";
-import { checkSystem } from "./api";
-import type { Category } from "./api";
+import { Navigate, Route, Routes } from "react-router-dom";
+import { AppShell } from "./components/AppShell";
+import { RequireRequester } from "./components/RequireRequester";
+import { RequesterSelection } from "./pages/RequesterSelection";
+import { CreateTicket } from "./pages/CreateTicket";
+import { MyTickets } from "./pages/MyTickets";
+import { TicketDetail } from "./pages/TicketDetail";
 
-type UiState = "idle" | "loading" | "success" | "error";
-
+// Lab 2 replaces the Lab 1 "Check System" placeholder with the real
+// Requester-facing application (see docs/lab-02/specification.md, section
+// "Assumptions and Decisions").
 export default function App() {
-  const [state, setState] = useState<UiState>("idle");
-  const [categories, setCategories] = useState<Category[]>([]);
-
-  async function handleCheck() {
-    setState("loading");
-    try {
-      const result = await checkSystem();
-      setCategories(result.categories);
-      setState("success");
-    } catch {
-      setCategories([]);
-      setState("error");
-    }
-  }
-
   return (
-    <div className="container py-5" style={{ maxWidth: 640 }}>
-      <h1 className="h3 mb-4">
-        TokTickIT <span className="text-success">IT Service Desk</span>
-      </h1>
+    <Routes>
+      <Route path="/select-requester" element={<RequesterSelection />} />
 
-      <button
-        className="btn btn-success"
-        onClick={handleCheck}
-        disabled={state === "loading"}
-      >
-        {state === "loading" ? "Loading..." : "Check System"}
-      </button>
+      <Route element={<RequireRequester />}>
+        <Route element={<AppShell />}>
+          <Route path="/tickets" element={<MyTickets />} />
+          <Route path="/tickets/new" element={<CreateTicket />} />
+          <Route path="/tickets/:id" element={<TicketDetail />} />
+        </Route>
+      </Route>
 
-      {state === "loading" && (
-        <p className="mt-3 text-muted" role="status">
-          &#8987; Loading...
-        </p>
-      )}
-
-      {state === "success" && (
-        <div className="mt-4">
-          <p>
-            <strong>System Status:</strong>{" "}
-            <span className="text-success fw-bold">Online</span>
-          </p>
-
-          <h2 className="h5 mt-4">Supported Request Categories</h2>
-          {categories.length === 0 ? (
-            <p className="text-muted">No categories found.</p>
-          ) : (
-            <ol className="mt-2">
-              {categories.map((category) => (
-                <li key={category.id}>{category.name}</li>
-              ))}
-            </ol>
-          )}
-        </div>
-      )}
-
-      {state === "error" && (
-        <div className="alert alert-danger mt-4" role="alert">
-          <p className="mb-1">
-            <strong>System Status:</strong>{" "}
-            <span className="fw-bold">Offline</span>
-          </p>
-          <p className="mb-0">Unable to connect to TokTickIT API</p>
-        </div>
-      )}
-    </div>
+      <Route path="*" element={<Navigate to="/tickets" replace />} />
+    </Routes>
   );
 }
