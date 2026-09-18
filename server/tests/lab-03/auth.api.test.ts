@@ -11,7 +11,7 @@ const app = createApp();
 function sessionCookie(response: request.Response): string {
   const raw = response.headers["set-cookie"] as unknown as string[] | undefined;
   const header = (raw ?? []).find((c) => c.startsWith(`${SESSION_COOKIE}=`));
-  return header ? header.split(";")[0] : "";
+  return header ? (header.split(";")[0] ?? "") : "";
 }
 
 async function login(email: string, password = TEST_PASSWORD) {

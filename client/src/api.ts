@@ -302,3 +302,105 @@ export async function downloadAttachment(
     URL.revokeObjectURL(url);
   }
 }
+
+// --- IT Staff queue and ticket operations (FR-10 to FR-15) ---
+
+export interface StaffTicketListItem {
+  id: number;
+  ticketNumber: string;
+  summary: string;
+  categoryName: string;
+  requesterName: string;
+  requestedPriority: RequestedPriority;
+  itPriority: RequestedPriority;
+  currentStatus: TicketStatus;
+  ownerId: number | null;
+  ownerName: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface StaffTicketListResponse {
+  data: StaffTicketListItem[];
+  pagination: Pagination;
+}
+
+/** The Requester ticket shape plus the Internal Notes, which only staff receive. */
+export interface StaffTicketDetail extends TicketDetail {
+  internalNotes: TicketMessage[];
+}
+
+export interface AssignableUser {
+  id: number;
+  name: string;
+  role: Role;
+}
+
+export interface StaffQueueParams {
+  search?: string;
+  categoryId?: number;
+  currentStatus?: TicketStatus;
+  itPriority?: RequestedPriority;
+  /** A user id, or the literal "unassigned" to find unclaimed work. */
+  ownerId?: number | "unassigned";
+  sortBy?: "createdAt" | "updatedAt" | "ticketNumber" | "itPriority" | "currentStatus";
+  sortDir?: "asc" | "desc";
+  page?: number;
+  pageSize?: 10 | 20 | 50;
+}
+
+export function listStaffTickets(params: StaffQueueParams = {}): Promise<StaffTicketListResponse> {
+  const query = new URLSearchParams();
+  for (const [key, value] of Object.entries(params)) {
+    if (value !== undefined && value !== "") {
+      query.set(key, String(value));
+    }
+  }
+  const qs = query.toString();
+  return request<StaffTicketListResponse>(`/api/staff/tickets${qs ? `?${qs}` : ""}`);
+}
+
+export function getStaffTicket(id: number): Promise<StaffTicketDetail> {
+  return request<StaffTicketDetail>(`/api/staff/tickets/${id}`);
+}
+
+export function getAssignableUsers(): Promise<AssignableUser[]> {
+  return request<AssignableUser[]>("/api/staff/assignable-users");
+}
+
+export function setTicketOwner(
+  id: number,
+  ownerId: number | null
+): Promise<{ id: number; ownerId: number | null; ownerName: string | null }> {
+  return request(`/api/staff/tickets/${id}/owner`, {
+    method: "PATCH",
+    body: JSON.stringify({ ownerId }),
+  });
+}
+
+export function setItPriority(
+  id: number,
+  itPriority: RequestedPriority
+): Promise<{ id: number; itPriority: RequestedPriority; requestedPriority: RequestedPriority }> {
+  return request(`/api/staff/tickets/${id}/it-priority`, {
+    method: "PATCH",
+    body: JSON.stringify({ itPriority }),
+  });
+}
+
+export function setTicketStatus(
+  id: number,
+  currentStatus: TicketStatus
+): Promise<{ id: number; currentStatus: TicketStatus }> {
+  return request(`/api/staff/tickets/${id}/status`, {
+    method: "PATCH",
+    body: JSON.stringify({ currentStatus }),
+  });
+}
+
+export function postInternalNote(ticketId: number, body: string): Promise<TicketMessage> {
+  return request<TicketMessage>(`/api/staff/tickets/${ticketId}/notes`, {
+    method: "POST",
+    body: JSON.stringify({ body }),
+  });
+}

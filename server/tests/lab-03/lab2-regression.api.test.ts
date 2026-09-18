@@ -148,13 +148,13 @@ describe("Lab 2 regression under Lab 3 authentication", () => {
       SELECT count(*) FROM "Ticket" t
       LEFT JOIN "User" u ON u.id = t."requesterId" WHERE u.id IS NULL
     `;
-    expect(Number(orphanTickets[0].count)).toBe(0);
+    expect(Number(orphanTickets[0]?.count ?? -1)).toBe(0);
 
     const orphanAttachments = await prisma.$queryRaw<{ count: bigint }[]>`
       SELECT count(*) FROM "Attachment" a
       LEFT JOIN "Ticket" t ON t.id = a."ticketId" WHERE t.id IS NULL
     `;
-    expect(Number(orphanAttachments[0].count)).toBe(0);
+    expect(Number(orphanAttachments[0]?.count ?? -1)).toBe(0);
 
     // BR-41: the backfill is what made the NOT NULL column possible at all, so
     // a null here would mean a ticket slipped past the migration.
@@ -164,7 +164,7 @@ describe("Lab 2 regression under Lab 3 authentication", () => {
     const missingItPriority = await prisma.$queryRaw<{ count: bigint }[]>`
       SELECT count(*) FROM "Ticket" WHERE "itPriority" IS NULL
     `;
-    expect(Number(missingItPriority[0].count)).toBe(0);
+    expect(Number(missingItPriority[0]?.count ?? -1)).toBe(0);
 
     // Ticket numbers were not regenerated.
     const sample = await prisma.ticket.findMany({ take: 20, orderBy: { id: "asc" } });
