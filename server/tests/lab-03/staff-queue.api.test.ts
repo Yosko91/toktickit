@@ -2,7 +2,13 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import request from "supertest";
 import { createApp } from "../../src/app.js";
 import { getPrisma } from "../../src/prisma.js";
-import { cookieFor, cleanupUsers, createTestRequester, createTestStaff } from "../shared/auth.js";
+import {
+  cookieFor,
+  cleanupUsers,
+  createTestRequester,
+  createTestStaff,
+  uniqueSuffix,
+} from "../shared/auth.js";
 import { generateTicketNumber } from "../../src/services/ticketNumber.js";
 
 const app = createApp();
@@ -15,6 +21,14 @@ describe("GET /api/staff/tickets (the IT Staff queue)", () => {
   let relatedSystemId: number;
   let searchableNumber: string;
 
+  // The queue is global by design: it shows every ticket from every Requester,
+  // including the rows the other suites are creating at the same time. Every
+  // assertion below therefore narrows to this suite's own rows with a unique
+  // marker. Without it the filter and pagination assertions are racing the rest
+  // of the run, which is exactly how the pagination test first failed.
+  const MARKER = `queuefixture${uniqueSuffix().replace(/-/g, "")}`;
+  const FIXTURE_COUNT = 12;
+
   beforeAll(async () => {
     const prisma = getPrisma();
     staffId = (await createTestStaff()).id;
@@ -23,35 +37,24 @@ describe("GET /api/staff/tickets (the IT Staff queue)", () => {
     categoryId = (await prisma.category.findFirstOrThrow({ where: { isActive: true } })).id;
     relatedSystemId = (await prisma.relatedSystem.findFirstOrThrow({ where: { isActive: true } })).id;
 
-    // Tickets from two different requesters, with a spread of priority, status
-    // and ownership, so the filters have something to actually narrow.
-    const rows: {
-      requesterId: number;
-      ownerId: number | null;
-      itPriority: "LOW" | "MEDIUM" | "HIGH";
-      currentStatus: "NEW" | "IN_PROGRESS";
-    }[] = [
-      { requesterId: requesterA, ownerId: staffId, itPriority: "HIGH", currentStatus: "IN_PROGRESS" },
-      { requesterId: requesterA, ownerId: null, itPriority: "LOW", currentStatus: "NEW" },
-      { requesterId: requesterB, ownerId: null, itPriority: "MEDIUM", currentStatus: "NEW" },
-      { requesterId: requesterB, ownerId: staffId, itPriority: "LOW", currentStatus: "IN_PROGRESS" },
-    ];
+    const priorities = ["LOW", "MEDIUM", "HIGH"] as const;
 
-    for (const [index, row] of rows.entries()) {
+    for (let index = 0; index < FIXTURE_COUNT; index += 1) {
       const ticketNumber = await generateTicketNumber();
       if (index === 0) searchableNumber = ticketNumber;
+
       await prisma.ticket.create({
         data: {
           ticketNumber,
-          requesterId: row.requesterId,
-          ownerId: row.ownerId,
+          requesterId: index % 2 === 0 ? requesterA : requesterB,
+          ownerId: index % 3 === 0 ? staffId : null,
           categoryId,
           relatedSystemId,
-          summary: `Queue fixture ticket ${index} ${ticketNumber}`,
+          summary: `${MARKER} queue fixture ticket ${index}`,
           description: "Created by the Lab 3 staff queue suite to exercise the filters.",
           requestedPriority: "MEDIUM",
-          itPriority: row.itPriority,
-          currentStatus: row.currentStatus,
+          itPriority: priorities[index % priorities.length]!,
+          currentStatus: index % 4 === 0 ? "IN_PROGRESS" : "NEW",
         },
       });
     }
@@ -67,7 +70,7 @@ describe("GET /api/staff/tickets (the IT Staff queue)", () => {
 
   // API-19 - AC-11
   it("returns tickets from more than one requester", async () => {
-    const response = await queue("?pageSize=50");
+    const response = await queue(`?search=${MARKER}&pageSize=50`);
 
     expect(response.status).toBe(200);
     const names: string[] = response.body.data.map((t: { requesterName: string }) => t.requesterName);
@@ -88,7 +91,7 @@ describe("GET /api/staff/tickets (the IT Staff queue)", () => {
 
   // API-21 - FR-10
   it("filters down to unassigned work", async () => {
-    const response = await queue("?ownerId=unassigned&pageSize=50");
+    const response = await queue(`?search=${MARKER}&ownerId=unassigned&pageSize=50`);
 
     expect(response.status).toBe(200);
     expect(response.body.data.length).toBeGreaterThan(0);
@@ -98,7 +101,7 @@ describe("GET /api/staff/tickets (the IT Staff queue)", () => {
   });
 
   it("filters to one owner", async () => {
-    const response = await queue(`?ownerId=${staffId}&pageSize=50`);
+    const response = await queue(`?search=${MARKER}&ownerId=${staffId}&pageSize=50`);
 
     expect(response.status).toBe(200);
     expect(response.body.data.length).toBeGreaterThan(0);
@@ -109,7 +112,7 @@ describe("GET /api/staff/tickets (the IT Staff queue)", () => {
 
   // API-22 - FR-10
   it("filters by status", async () => {
-    const response = await queue("?currentStatus=IN_PROGRESS&pageSize=50");
+    const response = await queue(`?search=${MARKER}&currentStatus=IN_PROGRESS&pageSize=50`);
 
     expect(response.status).toBe(200);
     for (const ticket of response.body.data) {
@@ -118,7 +121,7 @@ describe("GET /api/staff/tickets (the IT Staff queue)", () => {
   });
 
   it("filters by IT priority", async () => {
-    const response = await queue("?itPriority=HIGH&pageSize=50");
+    const response = await queue(`?search=${MARKER}&itPriority=HIGH&pageSize=50`);
 
     expect(response.status).toBe(200);
     for (const ticket of response.body.data) {
@@ -128,7 +131,7 @@ describe("GET /api/staff/tickets (the IT Staff queue)", () => {
 
   // API-23 - FR-10
   it("sorts by IT priority in a real order rather than just succeeding", async () => {
-    const response = await queue("?sortBy=itPriority&sortDir=asc&pageSize=50");
+    const response = await queue(`?search=${MARKER}&sortBy=itPriority&sortDir=asc&pageSize=50`);
 
     expect(response.status).toBe(200);
     const rank = { LOW: 0, MEDIUM: 1, HIGH: 2 } as const;
@@ -142,16 +145,17 @@ describe("GET /api/staff/tickets (the IT Staff queue)", () => {
 
   // API-24 - FR-10
   it("paginates with correct metadata and no row appearing on two pages", async () => {
-    const first = await queue("?page=1&pageSize=10&sortBy=createdAt&sortDir=desc");
-    const second = await queue("?page=2&pageSize=10&sortBy=createdAt&sortDir=desc");
+    const paged = `?search=${MARKER}&pageSize=10&sortBy=createdAt&sortDir=desc`;
+    const first = await queue(`${paged}&page=1`);
+    const second = await queue(`${paged}&page=2`);
 
     expect(first.status).toBe(200);
     expect(first.body.pagination.page).toBe(1);
     expect(first.body.pagination.pageSize).toBe(10);
-    expect(first.body.pagination.totalItems).toBeGreaterThan(10);
-    expect(first.body.pagination.totalPages).toBe(
-      Math.ceil(first.body.pagination.totalItems / 10)
-    );
+    expect(first.body.pagination.totalItems).toBe(FIXTURE_COUNT);
+    expect(first.body.pagination.totalPages).toBe(2);
+    expect(first.body.data).toHaveLength(10);
+    expect(second.body.data).toHaveLength(FIXTURE_COUNT - 10);
 
     const firstIds = first.body.data.map((t: { id: number }) => t.id);
     const secondIds = second.body.data.map((t: { id: number }) => t.id);
