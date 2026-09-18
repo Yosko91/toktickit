@@ -1,29 +1,25 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { makeTicketListItem, renderWithProviders, SEEDED_REQUESTER, selectSeededRequester } from "./testUtils";
+import { makeTicketListItem, renderWithProviders, SEEDED_REQUESTER } from "./testUtils";
 import { MyTickets } from "../../src/pages/MyTickets";
-import { getActiveRequesters, getCategories, listTickets } from "../../src/api";
-import { useRequester } from "../../src/context/RequesterContext";
+import { getCurrentUser, getCategories, listTickets } from "../../src/api";
 
 vi.mock("../../src/api", async () => {
   const actual = await vi.importActual<typeof import("../../src/api")>("../../src/api");
-  return { ...actual, getActiveRequesters: vi.fn(), getCategories: vi.fn(), listTickets: vi.fn() };
+  return { ...actual, getCurrentUser: vi.fn(), getCategories: vi.fn(), listTickets: vi.fn() };
 });
 
 const mocked = {
-  getActiveRequesters: vi.mocked(getActiveRequesters),
+  getCurrentUser: vi.mocked(getCurrentUser),
   getCategories: vi.mocked(getCategories),
   listTickets: vi.mocked(listTickets),
 };
 
-const OTHER_REQUESTER = { id: 2, name: "Sarah Johnson", email: "sarah.johnson@toktickit.dev" };
-
 beforeEach(() => {
   sessionStorage.clear();
   vi.resetAllMocks();
-  selectSeededRequester();
-  mocked.getActiveRequesters.mockResolvedValue([SEEDED_REQUESTER, OTHER_REQUESTER]);
+  mocked.getCurrentUser.mockResolvedValue(SEEDED_REQUESTER);
   mocked.getCategories.mockResolvedValue([{ id: 1, name: "Hardware" }]);
 });
 
@@ -69,7 +65,7 @@ describe("MyTickets", () => {
 
   // UI-11 - AC-12
   it("requests page 2 when Next is clicked", async () => {
-    mocked.listTickets.mockImplementation(async (_id, params) => ({
+    mocked.listTickets.mockImplementation(async (params) => ({
       data: [makeTicketListItem({ id: params?.page === 2 ? 99 : 1 })],
       pagination: { page: params?.page ?? 1, pageSize: 10, totalItems: 15, totalPages: 2 },
     }));
@@ -81,41 +77,27 @@ describe("MyTickets", () => {
     await user.click(screen.getByRole("button", { name: /^next/i }));
 
     await waitFor(() =>
-      expect(mocked.listTickets).toHaveBeenLastCalledWith(
-        SEEDED_REQUESTER.id,
-        expect.objectContaining({ page: 2 })
-      )
+      expect(mocked.listTickets).toHaveBeenLastCalledWith(expect.objectContaining({ page: 2 }))
     );
   });
 
   // UI-10 - AC-21
-  it("reloads with the new requester id when the requester context changes", async () => {
+  // UI-14 (Lab 3) - BR-42. Lab 2 tested that switching Development Requester
+  // reloaded the list. There is no switching any more: the list is scoped by
+  // the session on the server, so the guarantee worth testing is that the
+  // client never sends a requester id at all and so cannot widen its own scope.
+  it("never sends a requester id with the list request", async () => {
     mocked.listTickets.mockResolvedValue({
       data: [],
       pagination: { page: 1, pageSize: 10, totalItems: 0, totalPages: 0 },
     });
 
-    function Harness() {
-      const { selectRequester } = useRequester();
-      return (
-        <div>
-          <button type="button" onClick={() => selectRequester(OTHER_REQUESTER.id)}>
-            switch requester
-          </button>
-          <MyTickets />
-        </div>
-      );
-    }
-
-    const user = userEvent.setup();
-    renderWithProviders(<Harness />);
+    renderWithProviders(<MyTickets />);
     await screen.findByText(/haven't created any tickets yet/i);
-    expect(mocked.listTickets).toHaveBeenCalledWith(SEEDED_REQUESTER.id, expect.anything());
 
-    await user.click(screen.getByRole("button", { name: /switch requester/i }));
-
-    await waitFor(() =>
-      expect(mocked.listTickets).toHaveBeenCalledWith(OTHER_REQUESTER.id, expect.anything())
-    );
+    for (const call of mocked.listTickets.mock.calls) {
+      expect(typeof call[0]).not.toBe("number");
+      expect(JSON.stringify(call[0] ?? {})).not.toMatch(/requesterId/);
+    }
   });
 });
