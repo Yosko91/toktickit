@@ -1,7 +1,7 @@
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import request from "supertest";
 import { createApp } from "../../src/app.js";
-import {
+import { cookieFor,
   cleanupRequesters,
   createTestRequester,
   getSeededCategory,
@@ -34,7 +34,7 @@ describe("POST /api/tickets", () => {
   it("creates a ticket and returns a formatted, unique Ticket Number", async () => {
     const response = await request(app)
       .post("/api/tickets")
-      .set("X-Dev-Requester-Id", String(requesterId))
+      .set("Cookie", cookieFor(requesterId))
       .send(validTicketBody({ categoryId, relatedSystemId }));
 
     expect(response.status).toBe(201);
@@ -47,11 +47,11 @@ describe("POST /api/tickets", () => {
   it("gives two tickets created back to back distinct ticket numbers", async () => {
     const first = await request(app)
       .post("/api/tickets")
-      .set("X-Dev-Requester-Id", String(requesterId))
+      .set("Cookie", cookieFor(requesterId))
       .send(validTicketBody({ categoryId, relatedSystemId }));
     const second = await request(app)
       .post("/api/tickets")
-      .set("X-Dev-Requester-Id", String(requesterId))
+      .set("Cookie", cookieFor(requesterId))
       .send(validTicketBody({ categoryId, relatedSystemId }));
 
     expect(first.body.ticketNumber).not.toBe(second.body.ticketNumber);
@@ -61,7 +61,7 @@ describe("POST /api/tickets", () => {
   it("rejects a missing summary with a field-level detail and creates nothing", async () => {
     const response = await request(app)
       .post("/api/tickets")
-      .set("X-Dev-Requester-Id", String(requesterId))
+      .set("Cookie", cookieFor(requesterId))
       .send(validTicketBody({ categoryId, relatedSystemId, summary: "" }));
 
     expect(response.status).toBe(400);
@@ -72,7 +72,7 @@ describe("POST /api/tickets", () => {
   it("rejects a description shorter than 20 characters", async () => {
     const response = await request(app)
       .post("/api/tickets")
-      .set("X-Dev-Requester-Id", String(requesterId))
+      .set("Cookie", cookieFor(requesterId))
       .send(validTicketBody({ categoryId, relatedSystemId, description: "too short" }));
 
     expect(response.status).toBe(400);
@@ -83,7 +83,7 @@ describe("POST /api/tickets", () => {
   it("rejects an unknown categoryId with 422 and creates nothing", async () => {
     const response = await request(app)
       .post("/api/tickets")
-      .set("X-Dev-Requester-Id", String(requesterId))
+      .set("Cookie", cookieFor(requesterId))
       .send(validTicketBody({ categoryId: 999999, relatedSystemId }));
 
     expect(response.status).toBe(422);
@@ -101,7 +101,7 @@ describe("POST /api/tickets", () => {
     try {
       const response = await request(app)
         .post("/api/tickets")
-        .set("X-Dev-Requester-Id", String(requesterId))
+        .set("Cookie", cookieFor(requesterId))
         .send(validTicketBody({ categoryId, relatedSystemId: inactiveSystem.id }));
 
       expect(response.status).toBe(422);
@@ -111,31 +111,36 @@ describe("POST /api/tickets", () => {
     }
   });
 
-  // API-06 - AC-27
-  it("rejects a request with no X-Dev-Requester-Id header", async () => {
+  // API-06 - AC-27 (Lab 2) / Lab 3 BR-12: the identity header became a session,
+  // so an unidentified call is now 401 rather than the Lab 2 400.
+  it("rejects a request with no session", async () => {
     const response = await request(app)
       .post("/api/tickets")
       .send(validTicketBody({ categoryId, relatedSystemId }));
 
-    expect(response.status).toBe(400);
+    expect(response.status).toBe(401);
   });
 
-  // API-07 - AC-27/BR-09
-  it("rejects a request identifying as an inactive requester", async () => {
+  // API-07 - AC-27/BR-09 (Lab 2) / Lab 3 BR-01: a deactivated account cannot
+  // hold a usable session, so this is now 401 rather than the Lab 2 403.
+  it("rejects a request from an inactive requester", async () => {
     const response = await request(app)
       .post("/api/tickets")
-      .set("X-Dev-Requester-Id", String(inactiveRequesterId))
+      .set("Cookie", cookieFor(inactiveRequesterId))
       .send(validTicketBody({ categoryId, relatedSystemId }));
 
-    expect(response.status).toBe(403);
+    expect(response.status).toBe(401);
   });
 
-  it("rejects an unknown requester id", async () => {
+  // Lab 2 answered 404 here, because the header named a requester row that did
+  // not exist. Lab 3 answers 401: an unknown session token is simply not
+  // authenticated, and saying "not found" would confirm which user ids exist.
+  it("rejects a session token that matches no session", async () => {
     const response = await request(app)
       .post("/api/tickets")
-      .set("X-Dev-Requester-Id", "999999999")
+      .set("Cookie", cookieFor(999999999))
       .send(validTicketBody({ categoryId, relatedSystemId }));
 
-    expect(response.status).toBe(404);
+    expect(response.status).toBe(401);
   });
 });

@@ -1,41 +1,18 @@
-import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { describe, expect, it } from "vitest";
 import request from "supertest";
 import { createApp } from "../../src/app.js";
 import { getPrisma } from "../../src/prisma.js";
-import { cleanupRequesters, createTestRequester } from "./helpers.js";
 
 const app = createApp();
 
-// API-29 - BR-06/BR-30: inactive Requesters never appear in the selector.
-describe("GET /api/requesters", () => {
-  let activeId: number;
-  let inactiveId: number;
-
-  beforeAll(async () => {
-    const active = await createTestRequester({ isActive: true });
-    const inactive = await createTestRequester({ isActive: false });
-    activeId = active.id;
-    inactiveId = inactive.id;
-  });
-
-  afterAll(async () => {
-    await cleanupRequesters([activeId, inactiveId]);
-  });
-
-  it("includes the active test requester and excludes the inactive one", async () => {
+// API-29 (Lab 2) became a removal check in Lab 3. BR-42 deletes the Development
+// Requester selector and the endpoint that fed it, so the useful assertion is
+// no longer "inactive requesters are filtered out" but "this endpoint is gone".
+describe("GET /api/requesters (removed in Lab 3)", () => {
+  it("no longer exists", async () => {
     const response = await request(app).get("/api/requesters");
 
-    expect(response.status).toBe(200);
-    const ids = response.body.map((r: { id: number }) => r.id);
-    expect(ids).toContain(activeId);
-    expect(ids).not.toContain(inactiveId);
-  });
-
-  it("returns only id, name, email (no isActive/createdAt leaked)", async () => {
-    const response = await request(app).get("/api/requesters");
-    const row = response.body.find((r: { id: number }) => r.id === activeId);
-
-    expect(Object.keys(row).sort()).toEqual(["email", "id", "name"]);
+    expect(response.status).toBe(404);
   });
 });
 

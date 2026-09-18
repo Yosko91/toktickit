@@ -1,6 +1,7 @@
 import { Router } from "express";
 import { getPrisma } from "../prisma.js";
-import { requireDevRequester } from "../middleware/requesterIdentity.js";
+import type { AuthUser } from "../middleware/auth.js";
+import { requireAuth, requirePasswordChanged } from "../middleware/auth.js";
 import { validateRemovalReason } from "../services/ticketValidation.js";
 import { attachmentFilePath } from "../services/attachmentStorage.js";
 import { shapeAttachment } from "../services/shapes.js";
@@ -8,12 +9,15 @@ import type { Attachment } from "@prisma/client";
 
 export const attachmentsRouter = Router();
 
-attachmentsRouter.use(requireDevRequester);
+attachmentsRouter.use(requireAuth, requirePasswordChanged);
 
-// BR-13/BR-29: an Attachment is owned through its parent Ticket's Requester.
-async function findOwnedAttachment(id: number, requesterId: number): Promise<Attachment | null> {
+// BR-13: an Attachment is reached through its parent Ticket. A Requester only
+// reaches their own, and a miss is "not found" rather than "forbidden" so the
+// response never confirms somebody else's attachment id exists. IT Staff and
+// Administrators reach any attachment (BR-16).
+async function findAccessibleAttachment(id: number, user: AuthUser): Promise<Attachment | null> {
   return getPrisma().attachment.findFirst({
-    where: { id, ticket: { requesterId } },
+    where: user.role === "REQUESTER" ? { id, ticket: { requesterId: user.id } } : { id },
   });
 }
 
@@ -26,7 +30,7 @@ attachmentsRouter.get("/:id", async (req, res) => {
   }
 
   try {
-    const attachment = await findOwnedAttachment(id, req.requester!.id);
+    const attachment = await findAccessibleAttachment(id, req.user!);
     if (!attachment) {
       res.status(404).json({ error: "Attachment not found" });
       return;
@@ -47,7 +51,7 @@ attachmentsRouter.get("/:id/download", async (req, res) => {
   }
 
   try {
-    const attachment = await findOwnedAttachment(id, req.requester!.id);
+    const attachment = await findAccessibleAttachment(id, req.user!);
     if (!attachment) {
       res.status(404).json({ error: "Attachment not found" });
       return;
@@ -84,7 +88,7 @@ attachmentsRouter.delete("/:id", async (req, res) => {
   }
 
   try {
-    const attachment = await findOwnedAttachment(id, req.requester!.id);
+    const attachment = await findAccessibleAttachment(id, req.user!);
     if (!attachment) {
       res.status(404).json({ error: "Attachment not found" });
       return;
@@ -108,7 +112,7 @@ attachmentsRouter.delete("/:id", async (req, res) => {
         data: {
           removedAt: new Date(),
           removedReason: reasonResult.value,
-          removedById: req.requester!.id,
+          removedById: req.user!.id,
         },
       }),
       prisma.ticket.update({ where: { id: attachment.ticketId }, data: { updatedAt: new Date() } }),
