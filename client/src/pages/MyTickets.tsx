@@ -245,7 +245,7 @@ export function MyTickets() {
 
       {state === "ready" && result && result.data.length > 0 && (
         <>
-          <div className="zen-table-wrap">
+          <div className="zen-table-wrap zen-table-wrap--cards">
             <table className="zen-table">
               <thead>
                 <tr>

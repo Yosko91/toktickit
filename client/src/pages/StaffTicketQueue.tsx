@@ -268,7 +268,7 @@ export function StaffTicketQueue() {
 
       {state === "ready" && tickets.length > 0 && (
         <>
-          <div className="zen-table-wrap">
+          <div className="zen-table-wrap zen-table-wrap--cards">
             <table className="zen-table">
               <thead>
                 <tr>

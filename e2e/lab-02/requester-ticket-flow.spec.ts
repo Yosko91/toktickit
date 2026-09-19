@@ -80,7 +80,11 @@ test.describe("Requester ticket flow (E2E)", () => {
     await expect(uploadedRow.getByText("Active", { exact: true })).toBeVisible();
   });
 
-  test("E2E-04: switching Requester hides the previous Requester's ticket", async ({ page }) => {
+  // Lab 2 switched Development Requester through the selector. Lab 3 removed
+  // it (BR-42), so the same guarantee is now proved by signing out and signing
+  // in as somebody else. The assertion that matters is unchanged: a direct URL
+  // to another Requester's ticket is refused, not merely hidden from the menu.
+  test("E2E-04: another Requester cannot open the first Requester's ticket by URL", async ({ page }) => {
     await selectRequester(page, REQUESTER_A);
     await createTicket(page, uniqueSummary("ownership"));
 
@@ -88,24 +92,15 @@ test.describe("Requester ticket flow (E2E)", () => {
     await page.waitForURL(/\/tickets\/\d+$/);
     const ticketDetailUrl = page.url();
 
-    await page.getByRole("button", { name: REQUESTER_A }).click();
-    await page.getByRole("button", { name: /change requester/i }).click();
-    await page.waitForURL(/\/select-requester$/);
+    await page.getByRole("button", { name: /👤/ }).click();
+    await page.getByRole("button", { name: /^logout$/i }).click();
+    await page.waitForURL(/\/login/);
 
-    await selectRequesterInline(page, REQUESTER_B);
+    await selectRequester(page, REQUESTER_B);
     await expect(page).toHaveURL(/\/tickets$/);
 
-    // AC-03/BR-13: a direct URL to another Requester's Ticket is rejected,
-    // not merely hidden from navigation.
+    // AC-03/BR-13: rejected as "not found", which does not confirm the id exists.
     await page.goto(ticketDetailUrl);
     await expect(page.getByText(/ticket not found/i)).toBeVisible();
   });
 });
-
-// selectRequester() in helpers.ts starts from /select-requester via goto();
-// here we are already on that screen after "Change Requester", so this
-// variant just interacts with the already-loaded form.
-async function selectRequesterInline(page: import("@playwright/test").Page, name: string) {
-  await page.getByLabel(/development requester/i).selectOption({ label: name });
-  await page.getByRole("button", { name: /continue/i }).click();
-}
