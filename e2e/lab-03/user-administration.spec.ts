@@ -26,7 +26,9 @@ test.describe("Administrator user management", () => {
     await page.getByLabel(/initial password/i).fill(initialPassword);
     await page.getByRole("button", { name: /save user/i }).click();
 
-    await expect(page.getByRole("status")).toContainText(/must change the password/i);
+    // The success banner specifically: the loading panel also carries
+    // role="status", so matching by role alone is a race with the reload.
+    await expect(page.locator(".zen-banner-success")).toContainText(/must change the password/i);
     await settle(page);
 
     // AC-18: search narrows the list down to the new account.
