@@ -12,16 +12,27 @@ enum RequestedPriority {
   HIGH
 }
 
-// Lab 2 only ever writes/reads NEW. The remaining values are modeled now so
-// Lab 3/4 workflow features (resolve/close/reopen/cancel) need no breaking
-// migration later - see specification.md BR-02 and "Assumptions and Decisions".
+// Lab 3 - BR-11: one role per user, no multi-role support in this sprint.
+enum Role {
+  REQUESTER
+  IT_STAFF
+  ADMINISTRATOR
+}
+
+// Lab 3 - BR-21. WAITING_FOR_REQUESTER and REOPENED are added for the IT Staff
+// workflow. PENDING is the unused Lab 2 placeholder: dropping a value from a
+// PostgreSQL enum means recreating the type and rewriting the column, so it is
+// kept in the database and simply never assignable (see specification.md
+// "Assumptions and Decisions").
 enum TicketStatus {
   NEW
   OPEN
   IN_PROGRESS
   PENDING
+  WAITING_FOR_REQUESTER
   RESOLVED
   CLOSED
+  REOPENED
   CANCELLED
 }
 
@@ -42,55 +53,114 @@ model RelatedSystem {
   tickets   Ticket[]
 }
 
-// Lab 2 - the "Development Requester" stand-in for a logged-in user (BR-05).
-// This is a testing mechanism, not an authenticated account: no password,
-// session, or role lives on this model. Lab 3 introduces real authentication
-// against this same identity (BR-33).
-model RequesterUser {
-  id                 Int          @id @default(autoincrement())
+// Lab 3 - the real authenticated account. This is the Lab 2 RequesterUser table
+// renamed in place (BR-39), not a new table: keeping the same primary keys is
+// what lets every existing Ticket and Attachment foreign key stay valid.
+model User {
+  id                 Int             @id @default(autoincrement())
   name               String
-  email              String       @unique
-  isActive           Boolean      @default(true)
-  createdAt          DateTime     @default(now())
-  tickets            Ticket[]
+  email              String          @unique
+  passwordHash       String
+  role               Role            @default(REQUESTER)
+  isActive           Boolean         @default(true)
+  mustChangePassword Boolean         @default(false)
+  createdAt          DateTime        @default(now())
+  updatedAt          DateTime        @updatedAt
+  tickets            Ticket[]        @relation("TicketRequester")
+  ownedTickets       Ticket[]        @relation("TicketOwner")
   removedAttachments Attachment[]
+  sessions           Session[]
+  publicComments     PublicComment[]
+  internalNotes      InternalNote[]
+
+  @@index([role])
+}
+
+// Lab 3 - BR-08/BR-09: sessions are rows rather than self-contained tokens so
+// that logout and a password change can revoke them server-side immediately.
+model Session {
+  id        String   @id
+  userId    Int
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+  expiresAt DateTime
+
+  @@index([userId])
 }
 
 model Ticket {
-  id                Int               @id @default(autoincrement())
-  ticketNumber      String            @unique
-  requesterId       Int
-  requester         RequesterUser     @relation(fields: [requesterId], references: [id])
-  categoryId        Int
-  category          Category          @relation(fields: [categoryId], references: [id])
-  relatedSystemId   Int
-  relatedSystem     RelatedSystem     @relation(fields: [relatedSystemId], references: [id])
-  summary           String
-  description       String
-  requestedPriority RequestedPriority
-  currentStatus     TicketStatus      @default(NEW)
-  createdAt         DateTime          @default(now())
-  updatedAt         DateTime          @updatedAt
-  attachments       Attachment[]
+  id                  Int               @id @default(autoincrement())
+  ticketNumber        String            @unique
+  requesterId         Int
+  requester           User              @relation("TicketRequester", fields: [requesterId], references: [id])
+  ownerId             Int?
+  owner               User?             @relation("TicketOwner", fields: [ownerId], references: [id])
+  categoryId          Int
+  category            Category          @relation(fields: [categoryId], references: [id])
+  relatedSystemId     Int
+  relatedSystem       RelatedSystem     @relation(fields: [relatedSystemId], references: [id])
+  summary             String
+  description         String
+  requestedPriority   RequestedPriority
+  // BR-20: copied from requestedPriority at creation, then only IT Staff move it.
+  itPriority          RequestedPriority
+  currentStatus       TicketStatus      @default(NEW)
+  // BR-31: the Requester's own opinion, deliberately not a status.
+  requesterResolvedAt DateTime?
+  createdAt           DateTime          @default(now())
+  updatedAt           DateTime          @updatedAt
+  attachments         Attachment[]
+  publicComments      PublicComment[]
+  internalNotes       InternalNote[]
 
   @@index([requesterId])
   @@index([categoryId])
   @@index([createdAt])
+  @@index([ownerId])
+  @@index([currentStatus])
 }
 
 model Attachment {
-  id             Int            @id @default(autoincrement())
+  id             Int       @id @default(autoincrement())
   ticketId       Int
-  ticket         Ticket         @relation(fields: [ticketId], references: [id])
+  ticket         Ticket    @relation(fields: [ticketId], references: [id])
   originalName   String
   storedFilename String
   mimeType       String
   sizeBytes      Int
-  uploadedAt     DateTime       @default(now())
+  uploadedAt     DateTime  @default(now())
   removedAt      DateTime?
   removedReason  String?
   removedById    Int?
-  removedBy      RequesterUser? @relation(fields: [removedById], references: [id])
+  removedBy      User?     @relation(fields: [removedById], references: [id])
+
+  @@index([ticketId])
+}
+
+// Lab 3 - BR-26/BR-27. Public Comments and Internal Notes are two models rather
+// than one model with a visibility flag: a single wrong boolean would leak
+// private text to a Requester, whereas two tables make the Requester read path
+// structurally unable to reach a note.
+model PublicComment {
+  id        Int      @id @default(autoincrement())
+  ticketId  Int
+  ticket    Ticket   @relation(fields: [ticketId], references: [id])
+  authorId  Int
+  author    User     @relation(fields: [authorId], references: [id])
+  body      String
+  createdAt DateTime @default(now())
+
+  @@index([ticketId])
+}
+
+model InternalNote {
+  id        Int      @id @default(autoincrement())
+  ticketId  Int
+  ticket    Ticket   @relation(fields: [ticketId], references: [id])
+  authorId  Int
+  author    User     @relation(fields: [authorId], references: [id])
+  body      String
+  createdAt DateTime @default(now())
 
   @@index([ticketId])
 }

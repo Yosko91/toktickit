@@ -1,7 +1,12 @@
 import type { Page } from "@playwright/test";
 
-export const REQUESTER_A = "Jennifer Anderson";
-export const REQUESTER_B = "Sarah Johnson";
+// Lab 3 replaced the Development Requester selector with a real login
+// (BR-42), so these are now accounts rather than selector labels. The Lab 2
+// journeys themselves are unchanged, which is the point: they are the
+// regression evidence that the Lab 2 increment still works.
+export const REQUESTER_A = "jennifer.anderson@toktickit.dev";
+export const REQUESTER_B = "sarah.johnson@toktickit.dev";
+export const DEV_PASSWORD = "TokTick!2026";
 
 export const VIEWPORTS = {
   desktop: { width: 1280, height: 800 },
@@ -9,12 +14,13 @@ export const VIEWPORTS = {
   mobile: { width: 390, height: 844 },
 } as const;
 
-// BR-05: goes through the real (non-authentication) Development Requester
-// selector, exactly as a Requester would.
-export async function selectRequester(page: Page, name: string) {
-  await page.goto("/select-requester");
-  await page.getByLabel(/development requester/i).selectOption({ label: name });
-  await page.getByRole("button", { name: /continue/i }).click();
+// Lab 3: the same intent as the Lab 2 selectRequester, through the real Login
+// screen instead of the removed selector.
+export async function selectRequester(page: Page, email: string) {
+  await page.goto("/login");
+  await page.getByLabel(/email address/i).fill(email);
+  await page.getByLabel(/^password$/i).fill(DEV_PASSWORD);
+  await page.getByRole("button", { name: /sign in/i }).click();
   await page.waitForURL(/\/tickets$/);
 }
 

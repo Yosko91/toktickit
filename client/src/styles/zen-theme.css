@@ -556,11 +556,29 @@ a {
 
 .zen-form-grid {
   display: grid;
-  grid-template-columns: repeat(2, 1fr);
+  /* minmax(0, 1fr) rather than 1fr: a plain 1fr track cannot shrink below its
+     min-content, so one wide child (a table, a long unbroken string) pushes the
+     whole grid past the viewport and .zen-table-wrap never gets the chance to
+     scroll. Caught by VIS-04 at tablet width. */
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 0 var(--zen-space-4);
 }
 .zen-form-grid.zen-form-grid--3 {
-  grid-template-columns: repeat(3, 1fr);
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+/* Administrator User Management: list beside the create/edit panel on desktop,
+   stacked below it. A five-column table next to a form is not usable at tablet
+   width, so the split only applies from 992px up. */
+.zen-admin-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--zen-space-4);
+}
+@media (min-width: 992px) {
+  .zen-admin-layout {
+    grid-template-columns: minmax(0, 2fr) minmax(320px, 1fr);
+  }
 }
 .zen-form-grid .zen-field--full {
   grid-column: 1 / -1;
@@ -675,7 +693,10 @@ a {
   gap: var(--zen-space-3);
 }
 @media (max-width: 767px) {
-  .zen-table-wrap {
+  /* Scoped to the lists that actually have a card alternative. The
+     Administrator user table has none, so hiding every .zen-table-wrap made it
+     disappear entirely on a phone. */
+  .zen-table-wrap--cards {
     display: none;
   }
   .zen-ticket-cards {
@@ -870,8 +891,12 @@ a {
   position: absolute;
   width: 1px;
   height: 1px;
+  padding: 0;
+  margin: -1px;
+  border: 0;
   overflow: hidden;
   clip: rect(0 0 0 0);
+  clip-path: inset(50%);
   white-space: nowrap;
 }
 

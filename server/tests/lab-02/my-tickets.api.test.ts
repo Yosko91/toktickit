@@ -2,7 +2,7 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import request from "supertest";
 import { createApp } from "../../src/app.js";
 import { getPrisma } from "../../src/prisma.js";
-import { cleanupRequesters, createTestRequester, getSeededCategory, getSeededRelatedSystem } from "./helpers.js";
+import { cookieFor, cleanupRequesters, createTestRequester, getSeededCategory, getSeededRelatedSystem } from "./helpers.js";
 
 const app = createApp();
 
@@ -34,6 +34,7 @@ describe("GET /api/tickets", () => {
           summary: i === 0 ? "Very particular search phrase" : `Test ticket ${i}`,
           description: "Description long enough to pass validation for this seeded test fixture.",
           requestedPriority: "MEDIUM",
+        itPriority: "MEDIUM",
           createdAt: new Date(Date.now() - (15 - i) * 60_000),
         },
       });
@@ -50,6 +51,7 @@ describe("GET /api/tickets", () => {
         summary: "Requester B's own ticket",
         description: "Description long enough to pass validation for this seeded test fixture.",
         requestedPriority: "HIGH",
+        itPriority: "HIGH",
       },
     });
   });
@@ -60,7 +62,7 @@ describe("GET /api/tickets", () => {
 
   // API-09 - AC-03/BR-13
   it("never returns another requester's tickets, even unfiltered", async () => {
-    const response = await request(app).get("/api/tickets").set("X-Dev-Requester-Id", String(requesterA));
+    const response = await request(app).get("/api/tickets").set("Cookie", cookieFor(requesterA));
 
     expect(response.status).toBe(200);
     const ticketNumbers = response.body.data.map((t: { ticketNumber: string }) => t.ticketNumber);
@@ -72,7 +74,7 @@ describe("GET /api/tickets", () => {
     const response = await request(app)
       .get("/api/tickets")
       .query({ search: ticketANumber })
-      .set("X-Dev-Requester-Id", String(requesterA));
+      .set("Cookie", cookieFor(requesterA));
 
     expect(response.body.data).toHaveLength(1);
     expect(response.body.data[0].ticketNumber).toBe(ticketANumber);
@@ -82,7 +84,7 @@ describe("GET /api/tickets", () => {
     const response = await request(app)
       .get("/api/tickets")
       .query({ search: "particular search" })
-      .set("X-Dev-Requester-Id", String(requesterA));
+      .set("Cookie", cookieFor(requesterA));
 
     expect(response.body.data).toHaveLength(1);
   });
@@ -92,7 +94,7 @@ describe("GET /api/tickets", () => {
     const response = await request(app)
       .get("/api/tickets")
       .query({ categoryId })
-      .set("X-Dev-Requester-Id", String(requesterA));
+      .set("Cookie", cookieFor(requesterA));
 
     expect(response.status).toBe(200);
     for (const row of response.body.data) {
@@ -106,7 +108,7 @@ describe("GET /api/tickets", () => {
     const response = await request(app)
       .get("/api/tickets")
       .query({ page: 2, pageSize: 10, search: "" })
-      .set("X-Dev-Requester-Id", String(requesterA));
+      .set("Cookie", cookieFor(requesterA));
 
     expect(response.body.pagination.totalItems).toBe(15);
     expect(response.body.data).toHaveLength(5);
@@ -117,7 +119,7 @@ describe("GET /api/tickets", () => {
     const response = await request(app)
       .get("/api/tickets")
       .query({ sortBy: "createdAt", sortDir: "asc", pageSize: 50 })
-      .set("X-Dev-Requester-Id", String(requesterA));
+      .set("Cookie", cookieFor(requesterA));
 
     const dates = response.body.data.map((t: { createdAt: string }) => new Date(t.createdAt).getTime());
     expect(dates).toEqual([...dates].sort((a, b) => a - b));
@@ -128,7 +130,7 @@ describe("GET /api/tickets", () => {
     const response = await request(app)
       .get("/api/tickets")
       .query({ sortBy: "notAField" })
-      .set("X-Dev-Requester-Id", String(requesterA));
+      .set("Cookie", cookieFor(requesterA));
 
     expect(response.status).toBe(400);
   });
@@ -137,7 +139,7 @@ describe("GET /api/tickets", () => {
     const response = await request(app)
       .get("/api/tickets")
       .query({ pageSize: 7 })
-      .set("X-Dev-Requester-Id", String(requesterA));
+      .set("Cookie", cookieFor(requesterA));
 
     expect(response.status).toBe(400);
   });
@@ -145,7 +147,7 @@ describe("GET /api/tickets", () => {
   it("returns an empty (not erroring) list plus zero totals for a requester with no tickets", async () => {
     const fresh = await createTestRequester();
     try {
-      const response = await request(app).get("/api/tickets").set("X-Dev-Requester-Id", String(fresh.id));
+      const response = await request(app).get("/api/tickets").set("Cookie", cookieFor(fresh.id));
 
       expect(response.status).toBe(200);
       expect(response.body.data).toEqual([]);

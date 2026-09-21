@@ -1,27 +1,26 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { renderWithProviders, SEEDED_REQUESTER, selectSeededRequester } from "./testUtils";
+import { renderWithProviders, SEEDED_REQUESTER } from "./testUtils";
 import { TicketDetail } from "../../src/pages/TicketDetail";
 import { RemoveAttachmentDialog } from "../../src/components/RemoveAttachmentDialog";
-import { getActiveRequesters, getTicket } from "../../src/api";
+import { getCurrentUser, getTicket } from "../../src/api";
 import type { TicketDetail as TicketDetailType } from "../../src/api";
 
 vi.mock("../../src/api", async () => {
   const actual = await vi.importActual<typeof import("../../src/api")>("../../src/api");
-  return { ...actual, getActiveRequesters: vi.fn(), getTicket: vi.fn() };
+  return { ...actual, getCurrentUser: vi.fn(), getTicket: vi.fn() };
 });
 
 const mocked = {
-  getActiveRequesters: vi.mocked(getActiveRequesters),
+  getCurrentUser: vi.mocked(getCurrentUser),
   getTicket: vi.mocked(getTicket),
 };
 
 beforeEach(() => {
   sessionStorage.clear();
   vi.resetAllMocks();
-  selectSeededRequester();
-  mocked.getActiveRequesters.mockResolvedValue([SEEDED_REQUESTER]);
+  mocked.getCurrentUser.mockResolvedValue(SEEDED_REQUESTER);
 });
 
 const TICKET: TicketDetailType = {
@@ -40,10 +39,16 @@ const TICKET: TicketDetailType = {
   createdAt: "2026-08-20T09:00:00.000Z",
   updatedAt: "2026-08-20T09:00:00.000Z",
   attachments: [],
+  // Lab 3 additions to the Requester ticket shape.
+  ownerId: null,
+  ownerName: null,
+  itPriority: "MEDIUM",
+  requesterResolvedAt: null,
+  publicComments: [],
 };
 
 describe("RequesterTicketDetail (Ticket Detail screen)", () => {
-  it("renders the read-only ticket fields and excludes comment/status features", async () => {
+  it("renders the read-only ticket fields, the comments panel and no staff controls", async () => {
     mocked.getTicket.mockResolvedValue(TICKET);
 
     renderWithProviders(<TicketDetail />, { route: "/tickets/1", path: "/tickets/:id" });
@@ -52,9 +57,14 @@ describe("RequesterTicketDetail (Ticket Detail screen)", () => {
     expect(screen.getByText("Corporate Laptop")).toBeInTheDocument();
     expect(screen.getByText(SEEDED_REQUESTER.name)).toBeInTheDocument();
 
-    // Explicit exclusions (handout section 8.5): no comments/notes/status workflow here.
-    expect(screen.queryByText(/public comments/i)).not.toBeInTheDocument();
+    // Lab 3 adds Public Comments to this screen (FR-08).
+    expect(screen.getByText(/public comments/i)).toBeInTheDocument();
+
+    // BR-26/BR-24: a Requester must never see the private note stream, and has
+    // no ownership, IT Priority or status control on this screen.
     expect(screen.queryByText(/internal notes/i)).not.toBeInTheDocument();
+    expect(screen.queryByLabelText(/it priority/i)).not.toBeInTheDocument();
+    expect(screen.queryByLabelText(/ticket owner/i)).not.toBeInTheDocument();
     expect(screen.queryByText(/actions taken/i)).not.toBeInTheDocument();
   });
 
