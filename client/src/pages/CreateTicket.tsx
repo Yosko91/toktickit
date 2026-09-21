@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import type { FormEvent } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { useRequester } from "../context/RequesterContext";
+import { useAuth } from "../context/AuthContext";
 import {
   ApiError,
   createTicket,
@@ -24,7 +24,7 @@ interface UploadResult {
 
 // ui-spec.md section 9 - Create Ticket screen (create mode).
 export function CreateTicket() {
-  const { requester } = useRequester();
+  const { user } = useAuth();
   const navigate = useNavigate();
 
   const [refState, setRefState] = useState<"loading" | "ready" | "error">("loading");
@@ -129,7 +129,7 @@ export function CreateTicket() {
 
     setSubmitting(true);
     try {
-      const ticket = await createTicket(requester!.id, {
+      const ticket = await createTicket({
         categoryId: Number(categoryId),
         relatedSystemId: Number(relatedSystemId),
         summary: trimmedSummary,
@@ -142,7 +142,7 @@ export function CreateTicket() {
       const results: UploadResult[] = [];
       for (const file of validFiles) {
         try {
-          await uploadAttachment(requester!.id, ticket.id, file);
+          await uploadAttachment(ticket.id, file);
           results.push({ name: file.name, ok: true });
         } catch (err) {
           results.push({
@@ -229,7 +229,7 @@ export function CreateTicket() {
 
         <ReadOnlyField
           label="Requester"
-          value={requester?.name}
+          value={user?.name}
           hint="Populated from the Development Requester selected before entering the application."
           className="zen-field--full"
         />

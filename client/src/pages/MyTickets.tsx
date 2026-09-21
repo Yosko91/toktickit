@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { useRequester } from "../context/RequesterContext";
+import { useAuth } from "../context/AuthContext";
 import { ApiError, getCategories, listTickets } from "../api";
 import type { Category, RequestedPriority, TicketListItem, TicketListResponse, TicketStatus } from "../api";
 import { LoadingPanel, StatePanel } from "../components/StatePanel";
@@ -23,7 +23,7 @@ function formatDate(iso: string): string {
 // ui-spec.md section 10 - My Tickets screen: search, filters, sort,
 // pagination, and the empty-vs-no-results distinction (BR-31).
 export function MyTickets() {
-  const { requester } = useRequester();
+  const { user } = useAuth();
   const navigate = useNavigate();
 
   const [categories, setCategories] = useState<Category[]>([]);
@@ -60,17 +60,17 @@ export function MyTickets() {
   useEffect(() => {
     setHasAnyTickets(null);
     setPage(1);
-  }, [requester?.id]);
+  }, [user?.id]);
 
   const filtersActive = Boolean(debouncedSearch || categoryId || priority || status);
 
   useEffect(() => {
-    if (!requester) return;
+    if (!user) return;
     let cancelled = false;
     setState("loading");
     setError(null);
 
-    listTickets(requester.id, {
+    listTickets({
       search: debouncedSearch || undefined,
       categoryId: categoryId ? Number(categoryId) : undefined,
       requestedPriority: priority || undefined,
@@ -98,7 +98,7 @@ export function MyTickets() {
       cancelled = true;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [requester?.id, debouncedSearch, categoryId, priority, status, sortBy, sortDir, page]);
+  }, [user?.id, debouncedSearch, categoryId, priority, status, sortBy, sortDir, page]);
 
   function handleSort(field: SortField) {
     if (field === sortBy) {

@@ -1,13 +1,22 @@
 import { useCallback, useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
-import { useRequester } from "../context/RequesterContext";
-import { ApiError, downloadAttachment, getTicket, removeAttachment, uploadAttachment } from "../api";
+import { useAuth } from "../context/AuthContext";
+import {
+  ApiError,
+  downloadAttachment,
+  getTicket,
+  markRequesterResolved,
+  postComment,
+  removeAttachment,
+  uploadAttachment,
+} from "../api";
 import type { AttachmentMeta, TicketDetail as TicketDetailType } from "../api";
 import { LoadingPanel, StatePanel } from "../components/StatePanel";
 import { ReadOnlyField } from "../components/Field";
 import { PriorityBadge, StatusBadge } from "../components/Badge";
 import { AttachmentSection } from "../components/AttachmentSection";
 import { RemoveAttachmentDialog } from "../components/RemoveAttachmentDialog";
+import { CommentPanel } from "../components/CommentPanel";
 import { validateAttachmentFile } from "../utils/attachmentRules";
 
 function formatDate(iso: string): string {
@@ -22,12 +31,14 @@ function formatDate(iso: string): string {
 
 type LoadState = "loading" | "ready" | "not-found" | "error";
 
-// ui-spec.md section 11 - Requester Ticket Detail (view mode): read-only
-// header + the Attachment lifecycle. No comments/notes/status controls here
-// (explicit exclusion, handout section 8.5).
+// ui-spec.md section 4 - Requester Ticket Detail. Read-only ticket header plus
+// the Attachment lifecycle from Lab 2, and now a Public Comments panel and the
+// "problem appears resolved" action (FR-08, FR-09). There is deliberately no
+// Internal Notes panel, no owner control, no IT Priority control and no status
+// control: a Requester has none of those rights (BR-24, BR-26).
 export function TicketDetail() {
   const { id } = useParams<{ id: string }>();
-  const { requester } = useRequester();
+  const { user } = useAuth();
 
   const [state, setState] = useState<LoadState>("loading");
   const [error, setError] = useState<string | null>(null);
@@ -37,12 +48,14 @@ export function TicketDetail() {
   const [uploadError, setUploadError] = useState<string | null>(null);
   const [removeTarget, setRemoveTarget] = useState<AttachmentMeta | null>(null);
   const [removing, setRemoving] = useState(false);
+  const [resolveError, setResolveError] = useState<string | null>(null);
+  const [resolving, setResolving] = useState(false);
 
   const load = useCallback(() => {
-    if (!requester || !id) return;
+    if (!user || !id) return;
     setState("loading");
     setError(null);
-    getTicket(requester.id, Number(id))
+    getTicket(Number(id))
       .then((t) => {
         setTicket(t);
         setState("ready");
@@ -55,14 +68,14 @@ export function TicketDetail() {
           setState("error");
         }
       });
-  }, [requester, id]);
+  }, [user, id]);
 
   useEffect(() => {
     load();
   }, [load]);
 
   async function handleAddFile(file: File) {
-    if (!ticket || !requester) return;
+    if (!ticket) return;
     const clientError = validateAttachmentFile(file);
     if (clientError) {
       setUploadError(clientError);
@@ -71,7 +84,7 @@ export function TicketDetail() {
     setUploadError(null);
     setUploading(true);
     try {
-      await uploadAttachment(requester.id, ticket.id, file);
+      await uploadAttachment(ticket.id, file);
       load();
     } catch (err) {
       setUploadError(err instanceof ApiError ? err.message : "Upload failed");
@@ -81,10 +94,10 @@ export function TicketDetail() {
   }
 
   async function handleConfirmRemove(reason: string) {
-    if (!removeTarget || !requester) return;
+    if (!removeTarget) return;
     setRemoving(true);
     try {
-      await removeAttachment(requester.id, removeTarget.id, reason);
+      await removeAttachment(removeTarget.id, reason);
       setRemoveTarget(null);
       load();
     } catch (err) {
@@ -96,11 +109,35 @@ export function TicketDetail() {
   }
 
   async function handleDownload(attachment: AttachmentMeta) {
-    if (!requester) return;
     try {
-      await downloadAttachment(requester.id, attachment.id, attachment.originalName);
+      await downloadAttachment(attachment.id, attachment.originalName);
     } catch (err) {
       setUploadError(err instanceof ApiError ? err.message : "Download failed");
+    }
+  }
+
+  async function handlePostComment(body: string) {
+    if (!ticket) return;
+    await postComment(ticket.id, body);
+    load();
+  }
+
+  // FR-09/BR-31: records the Requester's own opinion. It is explicitly not a
+  // status change, and the screen says so, because a Requester could
+  // reasonably expect the badge to move.
+  async function handleRequesterResolved() {
+    if (!ticket) return;
+    setResolving(true);
+    setResolveError(null);
+    try {
+      await markRequesterResolved(ticket.id);
+      load();
+    } catch (err) {
+      setResolveError(
+        err instanceof ApiError ? err.message : "Unable to record that the problem looks resolved"
+      );
+    } finally {
+      setResolving(false);
     }
   }
 
@@ -171,6 +208,34 @@ export function TicketDetail() {
         </div>
       </div>
 
+      {ticket.requesterResolvedAt ? (
+        <div className="zen-banner zen-banner-success">
+          <span aria-hidden="true">✅</span>
+          <span>
+            You reported this looks resolved on {formatDate(ticket.requesterResolvedAt)}. IT Staff
+            will confirm and close the ticket.
+          </span>
+        </div>
+      ) : (
+        !["RESOLVED", "CLOSED", "CANCELLED"].includes(ticket.currentStatus) && (
+          <div className="zen-card">
+            <button
+              type="button"
+              className="zen-btn zen-btn-secondary"
+              onClick={handleRequesterResolved}
+              disabled={resolving}
+            >
+              {resolving ? "Saving…" : "Problem appears resolved"}
+            </button>
+            <p className="zen-field-hint" style={{ marginTop: "var(--zen-space-2)" }}>
+              This tells IT Staff that the problem looks fixed to you. It does not change the
+              ticket status: only IT Staff can resolve or close a ticket.
+            </p>
+            {resolveError && <div className="zen-field-error">{resolveError}</div>}
+          </div>
+        )
+      )}
+
       <AttachmentSection
         attachments={ticket.attachments}
         uploading={uploading}
@@ -178,6 +243,12 @@ export function TicketDetail() {
         onAddFile={handleAddFile}
         onDownload={handleDownload}
         onRemoveRequest={setRemoveTarget}
+      />
+
+      <CommentPanel
+        variant="public"
+        messages={ticket.publicComments}
+        onPost={handlePostComment}
       />
 
       {removeTarget && (

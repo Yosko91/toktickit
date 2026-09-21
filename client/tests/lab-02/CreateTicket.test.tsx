@@ -1,12 +1,12 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { renderWithProviders, SEEDED_REQUESTER, selectSeededRequester } from "./testUtils";
+import { renderWithProviders, SEEDED_REQUESTER } from "./testUtils";
 import { CreateTicket } from "../../src/pages/CreateTicket";
 import {
   ApiError,
   createTicket,
-  getActiveRequesters,
+  getCurrentUser,
   getCategories,
   getRelatedSystems,
 } from "../../src/api";
@@ -16,7 +16,7 @@ vi.mock("../../src/api", async () => {
   const actual = await vi.importActual<typeof import("../../src/api")>("../../src/api");
   return {
     ...actual,
-    getActiveRequesters: vi.fn(),
+    getCurrentUser: vi.fn(),
     getCategories: vi.fn(),
     getRelatedSystems: vi.fn(),
     createTicket: vi.fn(),
@@ -24,7 +24,7 @@ vi.mock("../../src/api", async () => {
 });
 
 const mocked = {
-  getActiveRequesters: vi.mocked(getActiveRequesters),
+  getCurrentUser: vi.mocked(getCurrentUser),
   getCategories: vi.mocked(getCategories),
   getRelatedSystems: vi.mocked(getRelatedSystems),
   createTicket: vi.mocked(createTicket),
@@ -54,8 +54,7 @@ function ticketFixture(overrides: Partial<TicketDetail> = {}): TicketDetail {
 beforeEach(() => {
   sessionStorage.clear();
   vi.resetAllMocks();
-  selectSeededRequester();
-  mocked.getActiveRequesters.mockResolvedValue([SEEDED_REQUESTER]);
+  mocked.getCurrentUser.mockResolvedValue(SEEDED_REQUESTER);
   mocked.getCategories.mockResolvedValue([{ id: 1, name: "Hardware" }]);
   mocked.getRelatedSystems.mockResolvedValue([{ id: 1, name: "Corporate Laptop" }]);
 });
