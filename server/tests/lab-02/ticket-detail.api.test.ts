@@ -2,7 +2,7 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import request from "supertest";
 import { createApp } from "../../src/app.js";
 import { getPrisma } from "../../src/prisma.js";
-import { cleanupRequesters, createTestRequester, getSeededCategory, getSeededRelatedSystem } from "./helpers.js";
+import { cookieFor, cleanupRequesters, createTestRequester, getSeededCategory, getSeededRelatedSystem } from "./helpers.js";
 
 const app = createApp();
 
@@ -29,6 +29,7 @@ describe("GET /api/tickets/:id", () => {
         summary: "Docking station not detected",
         description: "Description long enough to pass validation for this seeded test fixture.",
         requestedPriority: "LOW",
+        itPriority: "LOW",
       },
     });
     ticketId = ticket.id;
@@ -42,7 +43,7 @@ describe("GET /api/tickets/:id", () => {
   it("returns the full ticket shape, with an empty attachments array, to the owner", async () => {
     const response = await request(app)
       .get(`/api/tickets/${ticketId}`)
-      .set("X-Dev-Requester-Id", String(owner));
+      .set("Cookie", cookieFor(owner));
 
     expect(response.status).toBe(200);
     expect(response.body.ticketNumber).toContain("TKT-TEST-DETAIL-");
@@ -55,7 +56,7 @@ describe("GET /api/tickets/:id", () => {
   it("returns 404 (not 403) for a requester who does not own the ticket", async () => {
     const response = await request(app)
       .get(`/api/tickets/${ticketId}`)
-      .set("X-Dev-Requester-Id", String(stranger));
+      .set("Cookie", cookieFor(stranger));
 
     expect(response.status).toBe(404);
   });
@@ -64,7 +65,7 @@ describe("GET /api/tickets/:id", () => {
   it("returns 404 for an id that does not exist at all", async () => {
     const response = await request(app)
       .get("/api/tickets/999999999")
-      .set("X-Dev-Requester-Id", String(owner));
+      .set("Cookie", cookieFor(owner));
 
     expect(response.status).toBe(404);
   });
@@ -72,7 +73,7 @@ describe("GET /api/tickets/:id", () => {
   it("returns 404 for a non-numeric id instead of crashing", async () => {
     const response = await request(app)
       .get("/api/tickets/not-a-number")
-      .set("X-Dev-Requester-Id", String(owner));
+      .set("Cookie", cookieFor(owner));
 
     expect(response.status).toBe(404);
   });
