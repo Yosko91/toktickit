@@ -6,6 +6,7 @@ import { authRouter } from "./routes/auth.js";
 import { categoriesRouter } from "./routes/categories.js";
 import { relatedSystemsRouter } from "./routes/relatedSystems.js";
 import { ticketsRouter } from "./routes/tickets.js";
+import { staffTicketsRouter } from "./routes/staffTickets.js";
 import { attachmentsRouter } from "./routes/attachments.js";
 import { UnsupportedAttachmentTypeError } from "./services/attachmentStorage.js";
 
@@ -33,6 +34,7 @@ export function createApp() {
   app.use("/api/categories", categoriesRouter);
   app.use("/api/related-systems", relatedSystemsRouter);
   app.use("/api/tickets", ticketsRouter);
+  app.use("/api/staff", staffTicketsRouter);
   app.use("/api/attachments", attachmentsRouter);
 
   // BR-22/BR-23 (Lab 2): multer surfaces attachment type/size failures as errors

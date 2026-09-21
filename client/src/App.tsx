@@ -8,6 +8,8 @@ import { ChangePassword } from "./pages/ChangePassword";
 import { CreateTicket } from "./pages/CreateTicket";
 import { MyTickets } from "./pages/MyTickets";
 import { TicketDetail } from "./pages/TicketDetail";
+import { StaffTicketQueue } from "./pages/StaffTicketQueue";
+import { StaffTicketDetail } from "./pages/StaffTicketDetail";
 
 // Lab 3 replaces the Development Requester selector with a real Login screen
 // and role-specific routing (docs/lab-03/specification.md section 6).
@@ -34,6 +36,12 @@ export default function App() {
             <Route path="/tickets" element={<MyTickets />} />
             <Route path="/tickets/new" element={<CreateTicket />} />
             <Route path="/tickets/:id" element={<TicketDetail />} />
+          </Route>
+
+          {/* BR-16: IT Staff and Administrators share the ticket operations. */}
+          <Route element={<RequireRole roles={["IT_STAFF", "ADMINISTRATOR"]} />}>
+            <Route path="/queue" element={<StaffTicketQueue />} />
+            <Route path="/queue/:id" element={<StaffTicketDetail />} />
           </Route>
 
           {/* A plain "not found" rather than a redirect home: redirecting to a

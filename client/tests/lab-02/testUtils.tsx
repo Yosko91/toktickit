@@ -3,10 +3,13 @@ import { render } from "@testing-library/react";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
 import { AuthProvider } from "../../src/context/AuthContext";
 import type {
+  AssignableUser,
   AuthUser,
   RequestedPriority,
   Role,
   TicketDetail,
+  StaffTicketDetail,
+  StaffTicketListItem,
   TicketListItem,
   TicketMessage,
   TicketStatus,
@@ -102,3 +105,34 @@ export function makeTicketDetail(overrides: Partial<TicketDetail> = {}): TicketD
     ...overrides,
   };
 }
+
+export function makeStaffTicketListItem(
+  overrides: Partial<StaffTicketListItem> = {}
+): StaffTicketListItem {
+  return {
+    id: 1,
+    ticketNumber: "TKT-2026-000001",
+    summary: "Laptop battery drains quickly",
+    categoryName: "Hardware",
+    requesterName: "Jennifer Anderson",
+    requestedPriority: "MEDIUM" as RequestedPriority,
+    itPriority: "MEDIUM" as RequestedPriority,
+    currentStatus: "NEW" as TicketStatus,
+    ownerId: null,
+    ownerName: null,
+    createdAt: "2026-08-20T09:00:00.000Z",
+    updatedAt: "2026-08-20T09:00:00.000Z",
+    ...overrides,
+  };
+}
+
+export function makeStaffTicketDetail(
+  overrides: Partial<StaffTicketDetail> = {}
+): StaffTicketDetail {
+  return { ...makeTicketDetail(), internalNotes: [], ...overrides };
+}
+
+export const ASSIGNABLE_USERS: AssignableUser[] = [
+  { id: 21, name: "Michael Brown", role: "IT_STAFF" },
+  { id: 22, name: "Emily Davis", role: "IT_STAFF" },
+];
