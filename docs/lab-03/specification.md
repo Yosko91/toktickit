@@ -326,8 +326,16 @@ a PostgreSQL enum requires recreating the type and rewriting the column, which i
 risk for no benefit; it is simply never assignable.
 
 The last-Administrator rule (BR-35) is enforced by counting active Administrators inside the same
-transaction as the update, not by a prior read, so two concurrent deactivations cannot both pass
-the check.
+serialisable transaction as the update, not by a prior read, so two concurrent deactivations cannot
+both pass the check.
+
+Writing the tests for BR-35 showed that it is unreachable on its own through the API, and this is
+worth recording rather than hiding. Only an active Administrator can call the endpoint, so if
+exactly one active Administrator exists, the only account able to deactivate it is itself, and
+BR-34 refuses that first. BR-35 therefore never fires in a sequential request; it exists for the
+concurrent case, where two Administrators deactivate each other at the same moment and each would
+otherwise see one remaining. It is kept for that reason, and `docs/lab-03/tests.md` tests it as a
+race rather than pretending a sequential test exercises it.
 
 Requested Priority is immutable after creation (BR-19). The labsheet says it remains the value
 submitted by the Requester, which is read here as immutable rather than merely defaulted.

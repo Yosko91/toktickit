@@ -66,3 +66,28 @@ describe("requiresOwner", () => {
     }
   });
 });
+
+// BR-35: the pure part of the last-administrator rule.
+describe("couldRemoveAnAdministrator", () => {
+  it("fires only for a change that takes an active administrator out of the role", async () => {
+    const { couldRemoveAnAdministrator } = await import("../../src/services/userAdmin.js");
+    const activeAdmin = { role: "ADMINISTRATOR" as const, isActive: true };
+
+    expect(couldRemoveAnAdministrator(activeAdmin, { isActive: false })).toBe(true);
+    expect(couldRemoveAnAdministrator(activeAdmin, { role: "REQUESTER" })).toBe(true);
+    expect(couldRemoveAnAdministrator(activeAdmin, { role: "IT_STAFF" })).toBe(true);
+
+    // A rename, or a change that keeps them an active administrator, is not a risk.
+    expect(couldRemoveAnAdministrator(activeAdmin, { name: "New Name" })).toBe(false);
+    expect(couldRemoveAnAdministrator(activeAdmin, { role: "ADMINISTRATOR" })).toBe(false);
+    expect(couldRemoveAnAdministrator(activeAdmin, { isActive: true })).toBe(false);
+
+    // Somebody who is not an active administrator cannot be the last one.
+    expect(
+      couldRemoveAnAdministrator({ role: "ADMINISTRATOR", isActive: false }, { isActive: false })
+    ).toBe(false);
+    expect(couldRemoveAnAdministrator({ role: "IT_STAFF", isActive: true }, { isActive: false })).toBe(
+      false
+    );
+  });
+});

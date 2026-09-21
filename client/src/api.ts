@@ -404,3 +404,59 @@ export function postInternalNote(ticketId: number, body: string): Promise<Ticket
     body: JSON.stringify({ body }),
   });
 }
+
+// --- Administrator user management (FR-16 to FR-20) ---
+
+export interface ManagedUser {
+  id: number;
+  name: string;
+  email: string;
+  role: Role;
+  isActive: boolean;
+  mustChangePassword: boolean;
+  createdAt: string;
+}
+
+export interface CreateUserInput {
+  name: string;
+  email: string;
+  role: Role;
+  isActive: boolean;
+  initialPassword: string;
+}
+
+export interface UpdateUserInput {
+  name?: string;
+  email?: string;
+  role?: Role;
+  isActive?: boolean;
+}
+
+export function listUsers(params: { search?: string; role?: Role } = {}): Promise<ManagedUser[]> {
+  const query = new URLSearchParams();
+  if (params.search) query.set("search", params.search);
+  if (params.role) query.set("role", params.role);
+  const qs = query.toString();
+  return request<ManagedUser[]>(`/api/admin/users${qs ? `?${qs}` : ""}`);
+}
+
+export function createUser(input: CreateUserInput): Promise<ManagedUser> {
+  return request<ManagedUser>("/api/admin/users", {
+    method: "POST",
+    body: JSON.stringify(input),
+  });
+}
+
+export function updateUser(id: number, input: UpdateUserInput): Promise<ManagedUser> {
+  return request<ManagedUser>(`/api/admin/users/${id}`, {
+    method: "PATCH",
+    body: JSON.stringify(input),
+  });
+}
+
+export function setInitialPassword(id: number, initialPassword: string): Promise<ManagedUser> {
+  return request<ManagedUser>(`/api/admin/users/${id}/initial-password`, {
+    method: "POST",
+    body: JSON.stringify({ initialPassword }),
+  });
+}

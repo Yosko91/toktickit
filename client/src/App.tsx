@@ -10,6 +10,7 @@ import { MyTickets } from "./pages/MyTickets";
 import { TicketDetail } from "./pages/TicketDetail";
 import { StaffTicketQueue } from "./pages/StaffTicketQueue";
 import { StaffTicketDetail } from "./pages/StaffTicketDetail";
+import { UserManagement } from "./pages/UserManagement";
 
 // Lab 3 replaces the Development Requester selector with a real Login screen
 // and role-specific routing (docs/lab-03/specification.md section 6).
@@ -42,6 +43,12 @@ export default function App() {
           <Route element={<RequireRole roles={["IT_STAFF", "ADMINISTRATOR"]} />}>
             <Route path="/queue" element={<StaffTicketQueue />} />
             <Route path="/queue/:id" element={<StaffTicketDetail />} />
+          </Route>
+
+          {/* BR-15: user management is Administrator-only. IT Staff do not
+              gain it from sharing the ticket operations. */}
+          <Route element={<RequireRole roles={["ADMINISTRATOR"]} />}>
+            <Route path="/admin/users" element={<UserManagement />} />
           </Route>
 
           {/* A plain "not found" rather than a redirect home: redirecting to a
