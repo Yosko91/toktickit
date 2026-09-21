@@ -168,7 +168,8 @@ describe("UserManagement", () => {
       isActive: true,
       initialPassword: "Initial!2026",
     });
-    expect(await screen.findByRole("status")).toHaveTextContent(/must change the password/i);
+    // Scoped to the banner: the loading panel is also role="status".
+    expect(await screen.findByText(/must change the password/i)).toBeInTheDocument();
   });
 
   it("shows a retry control when the list cannot be loaded", async () => {

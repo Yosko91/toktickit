@@ -227,7 +227,7 @@ export function UserManagement() {
         </div>
       )}
 
-      <div className="zen-form-grid">
+      <div className="zen-admin-layout">
         <div>
           <div className="zen-filters">
             <div className="zen-field">
@@ -292,9 +292,7 @@ export function UserManagement() {
                     <th>Email</th>
                     <th>Role</th>
                     <th>Status</th>
-                    <th>
-                      <span className="zen-visually-hidden">Actions</span>
-                    </th>
+                    <th>Actions</th>
                   </tr>
                 </thead>
                 <tbody>

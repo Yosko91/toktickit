@@ -8,8 +8,46 @@ IT service desk application for Account and Access, Hardware, Software, and Netw
   Ticket, My Tickets (search/filter/sort/pagination), Requester Ticket Detail, and the
   Attachment lifecycle (upload, download, soft removal), all under one Zen Green visual system.
 
+- **Lab 3** replaces the Development Requester selector with real authentication and server-side
+  role-based authorization, and adds the first IT Staff workflow and Administrator user
+  management. Three roles now exist: Requester, IT Staff and Administrator.
+
 Stack: **React + TypeScript + Vite -> Express REST API -> Prisma ORM -> PostgreSQL**, with
 Playwright for end-to-end and visual/responsive evidence.
+
+## Running it locally
+
+```
+cd server && npm install && npx prisma migrate deploy && npm run prisma:seed && npm run dev
+cd client && npm install && npm run dev
+```
+
+The client runs on http://localhost:5173 and the API on http://localhost:3000.
+
+### Development accounts
+
+Every seeded account uses the same password, **`TokTick!2026`**. These are local development
+values only: they exist to make the three roles testable, they are not real credentials, and the
+seed that creates them would never be run against anything but a local database.
+
+| Role | Email | Notes |
+|---|---|---|
+| Requester | `jennifer.anderson@toktickit.dev` | Has tickets; used for most evidence |
+| Requester | `priya.nair@toktickit.dev` | Never given a ticket, so the empty state is always reachable |
+| Requester | `nina.sato@toktickit.dev` | Starts with an initial password, so the first-login change is always demonstrable |
+| Requester | `alex.turner@toktickit.dev` | Inactive, so a refused login can be shown |
+| IT Staff | `michael.brown@toktickit.dev` | Owns seeded tickets |
+| IT Staff | `robert.wilson@toktickit.dev` | Inactive |
+| Administrator | `john.smith@toktickit.dev` | User Management |
+| Administrator | `lisa.martinez@toktickit.dev` | A second administrator, so the last-administrator rule has something to protect |
+
+### Tests
+
+```
+cd server && npm test      # 162 tests: unit, API and authorization, against the real database
+cd client && npm test      # 53 component tests
+npx playwright test        # 40 end-to-end, responsive and visual tests
+```
 
 ## Repository structure
 
@@ -18,22 +56,23 @@ toktickit/
 ├── client/                       React + TypeScript + Vite frontend
 │   ├── src/
 │   │   ├── api.ts                REST client for the full Lab 2 contract
-│   │   ├── context/               RequesterContext (Development Requester)
+│   │   ├── context/               AuthContext (authenticated session)
 │   │   ├── components/            AppShell, form fields, badges, attachment UI, ...
-│   │   ├── pages/                 RequesterSelection, CreateTicket, MyTickets, TicketDetail
+│   │   ├── pages/                 Login, ChangePassword, CreateTicket, MyTickets, TicketDetail,
+│   │   │                          StaffTicketQueue, StaffTicketDetail, UserManagement
 │   │   └── styles/                Zen Green theme (docs/lab-02/ui-spec.md)
 │   └── tests/lab-01/, lab-02/    Vitest + Testing Library
 ├── server/                       Node.js + Express + TypeScript backend
 │   ├── prisma/                    schema.prisma, seed.ts, migrations/
 │   ├── src/
-│   │   ├── routes/                categories, related-systems, requesters, tickets, attachments
-│   │   ├── middleware/             X-Dev-Requester-Id identity check
-│   │   └── services/               ticket number, validation, attachment storage, query building
+│   │   ├── routes/                auth, categories, related-systems, tickets, staff, admin users
+│   │   ├── middleware/             session authentication, password-change gate, role checks
+│   │   └── services/               password hashing, sessions, ticket workflow, queries
 │   ├── uploads/lab-02/            Uploaded attachment files (git-ignored, created on demand)
 │   └── tests/lab-01/, lab-02/    Vitest + Supertest, against the real dev database
 ├── e2e/lab-02/                    Playwright E2E + responsive/visual tests
 ├── artifacts/lab-02/screenshots/  Committed Create Ticket / My Tickets / Ticket Detail screenshots
-├── docs/lab-01/, lab-02/         specification.md, tests.md, ui-spec.md, api-spec.md,
+├── docs/lab-01/, lab-02/, lab-03/ specification.md, tests.md, ui-spec.md, api-spec.md,
 │                                  reviewer.md, ai-use.md
 ├── playwright.config.ts
 ├── package.json                  Root-level: Playwright only (client/server have their own)

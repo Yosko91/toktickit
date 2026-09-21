@@ -86,7 +86,7 @@ test.describe("Responsive and visual evidence", () => {
     // empty state (server/prisma/seed.ts) - never given a Ticket anywhere.
     test(`My Tickets empty state - ${viewportName}`, async ({ page }) => {
       await page.setViewportSize(size);
-      await selectRequester(page, "Priya Nair");
+      await selectRequester(page, "priya.nair@toktickit.dev");
       await expect(page.getByText(/haven't created any tickets yet/i)).toBeVisible();
       await shoot(page, "my-tickets", viewportName, "empty");
       await assertNoHorizontalOverflow(page);
