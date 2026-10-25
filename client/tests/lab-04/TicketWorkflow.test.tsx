@@ -9,13 +9,20 @@ import {
 } from "../lab-02/testUtils";
 import { StaffTicketDetail } from "../../src/pages/StaffTicketDetail";
 import { StatusHistory } from "../../src/components/StatusHistory";
+import { AppShell } from "../../src/components/AppShell";
+import { StaffTicketQueue } from "../../src/pages/StaffTicketQueue";
+import { MyTickets } from "../../src/pages/MyTickets";
 import {
   ApiError,
   getAssignableUsers,
+  getCategories,
   getCurrentUser,
   getStaffTicket,
+  listStaffTickets,
+  listTickets,
   setTicketStatus,
 } from "../../src/api";
+import type { Role } from "../../src/api";
 
 vi.mock("../../src/api", async () => {
   const actual = await vi.importActual<typeof import("../../src/api")>("../../src/api");
@@ -25,6 +32,9 @@ vi.mock("../../src/api", async () => {
     getStaffTicket: vi.fn(),
     getAssignableUsers: vi.fn(),
     setTicketStatus: vi.fn(),
+    getCategories: vi.fn(),
+    listStaffTickets: vi.fn(),
+    listTickets: vi.fn(),
   };
 });
 
@@ -33,7 +43,12 @@ const mocked = {
   getStaffTicket: vi.mocked(getStaffTicket),
   getAssignableUsers: vi.mocked(getAssignableUsers),
   setTicketStatus: vi.mocked(setTicketStatus),
+  getCategories: vi.mocked(getCategories),
+  listStaffTickets: vi.mocked(listStaffTickets),
+  listTickets: vi.mocked(listTickets),
 };
+
+const EMPTY_PAGE = { data: [], pagination: { page: 1, pageSize: 20, totalItems: 0, totalPages: 0 } };
 
 const STAFF = makeAuthUser({ id: 21, name: "Michael Brown", role: "IT_STAFF" });
 
@@ -115,5 +130,49 @@ describe("Ticket workflow on the IT Staff Ticket Detail", () => {
   it("says when a ticket has no history yet (legacy ticket)", () => {
     render(<StatusHistory changes={[]} />);
     expect(screen.getByText(/no status changes recorded/i)).toBeInTheDocument();
+  });
+});
+
+describe("Lab 4 navigation and drill-down", () => {
+  // UI-14 - FR-13
+  it("puts Dashboard first in the navigation of every role, next to the Lab 3 items", async () => {
+    const expected: Record<Role, string[]> = {
+      REQUESTER: ["Dashboard", "My Tickets", "Create Ticket"],
+      IT_STAFF: ["Dashboard", "Ticket Queue"],
+      ADMINISTRATOR: ["Dashboard", "Ticket Queue", "Users"],
+    };
+    for (const role of Object.keys(expected) as Role[]) {
+      mocked.getCurrentUser.mockResolvedValue(makeAuthUser({ role }));
+      const { unmount } = renderWithProviders(<AppShell />, { route: "/dashboard" });
+      const nav = await screen.findByRole("navigation", { name: /main navigation/i });
+      const labels = within(nav).getAllByRole("link").map((l) => l.textContent?.replace(/^\S+\s/, ""));
+      expect(labels).toEqual(expected[role]);
+      expect(within(nav).getByRole("link", { name: /dashboard/i })).toHaveClass("is-active");
+      unmount();
+    }
+  });
+
+  // UI-15 - FR-12
+  it("starts the queue and My Tickets with the filter written in the URL", async () => {
+    mocked.getCategories.mockResolvedValue([]);
+    mocked.listStaffTickets.mockResolvedValue(EMPTY_PAGE);
+    mocked.listTickets.mockResolvedValue(EMPTY_PAGE);
+
+    const queue = renderWithProviders(<StaffTicketQueue />, { route: "/queue?ownerId=unassigned&statusGroup=active" });
+    await screen.findByRole("heading", { name: /ticket queue/i });
+    expect(mocked.listStaffTickets.mock.calls[0]![0]).toMatchObject({
+      ownerId: "unassigned",
+      statusGroup: "active",
+      currentStatus: undefined,
+    });
+    expect(screen.getByLabelText(/^status$/i)).toHaveDisplayValue("Active (not finished)");
+    queue.unmount();
+
+    mocked.getCurrentUser.mockResolvedValue(makeAuthUser());
+    renderWithProviders(<MyTickets />, { route: "/tickets?currentStatus=WAITING_FOR_REQUESTER" });
+    await screen.findByRole("heading", { name: /my tickets/i });
+    await vi.waitFor(() => expect(mocked.listTickets).toHaveBeenCalled());
+    expect(mocked.listTickets.mock.calls[0]![0]).toMatchObject({ currentStatus: "WAITING_FOR_REQUESTER" });
+    expect(screen.getByLabelText(/filter by current status/i)).toHaveDisplayValue("Waiting For Requester");
   });
 });

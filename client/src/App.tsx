@@ -11,6 +11,7 @@ import { TicketDetail } from "./pages/TicketDetail";
 import { StaffTicketQueue } from "./pages/StaffTicketQueue";
 import { StaffTicketDetail } from "./pages/StaffTicketDetail";
 import { UserManagement } from "./pages/UserManagement";
+import { Dashboard } from "./pages/Dashboard";
 
 // Lab 3 replaces the Development Requester selector with a real Login screen
 // and role-specific routing (docs/lab-03/specification.md section 6).
@@ -32,6 +33,8 @@ export default function App() {
 
         <Route element={<AppShell />}>
           <Route path="/" element={<HomeRedirect />} />
+          {/* Lab 4 - every role has a dashboard; the server decides the data. */}
+          <Route path="/dashboard" element={<Dashboard />} />
 
           <Route element={<RequireRole roles={["REQUESTER"]} />}>
             <Route path="/tickets" element={<MyTickets />} />

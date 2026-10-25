@@ -345,10 +345,16 @@ async function main() {
     (await prisma.relatedSystem.findMany({ select: { id: true, name: true } })).map((s) => [s.name, s.id])
   );
 
-  // Idempotency for tickets: the summary is the natural key here, because the
-  // ticket number comes from a sequence and would differ on every run.
+  // Idempotency for tickets: summary plus requester is the natural key here,
+  // because the ticket number comes from a sequence and would differ on every
+  // run. Lab 4 fix: the summary alone was not enough, end-to-end tests had
+  // created tickets with the same summary for another requester, and the seed
+  // then skipped its own ticket.
   for (const ticket of TICKETS) {
-    const existing = await prisma.ticket.findFirst({ where: { summary: ticket.summary } });
+    const existing = await prisma.ticket.findFirst({
+      where: { summary: ticket.summary, requesterId: userIdByEmail.get(ticket.requesterEmail)! },
+      orderBy: { id: "asc" },
+    });
     if (existing) {
       // Tickets from an earlier seed run only get the Lab 4 actions they miss.
       await seedActions(existing, ticket.actions ?? [], userIdByEmail);

@@ -152,6 +152,8 @@ export interface TicketListParams {
   categoryId?: number;
   requestedPriority?: RequestedPriority;
   currentStatus?: TicketStatus;
+  /** Lab 4 - BR-25: "active" keeps only the tickets still being worked on. */
+  statusGroup?: "active";
   sortBy?: "createdAt" | "ticketNumber" | "summary" | "requestedPriority";
   sortDir?: "asc" | "desc";
   page?: number;
@@ -380,6 +382,7 @@ export interface StaffQueueParams {
   itPriority?: RequestedPriority;
   /** A user id, or the literal "unassigned" to find unclaimed work. */
   ownerId?: number | "unassigned";
+  statusGroup?: "active";
   sortBy?: "createdAt" | "updatedAt" | "ticketNumber" | "itPriority" | "currentStatus";
   sortDir?: "asc" | "desc";
   page?: number;
@@ -480,6 +483,68 @@ export function updateAction(
     method: "PATCH",
     body: JSON.stringify(input),
   });
+}
+
+// --- Lab 4 dashboards (api-spec.md section 6) ---
+
+export interface DashboardMetric {
+  key: string;
+  label: string;
+  value: number;
+  /** Where the card drills down to: a client route, or an anchor on the page. */
+  link: string;
+}
+
+export interface DashboardTicket {
+  id: number;
+  ticketNumber: string;
+  summary: string;
+  currentStatus: TicketStatus;
+  itPriority: RequestedPriority;
+  ownerName: string | null;
+  updatedAt: string;
+  resolvedAt: string | null;
+}
+
+export interface RequesterDashboardData {
+  generatedAt: string;
+  metrics: DashboardMetric[];
+  needsAttention: DashboardTicket[];
+  recentlyUpdated: DashboardTicket[];
+  recentlyResolved: DashboardTicket[];
+}
+
+export interface StaffDashboardData {
+  generatedAt: string;
+  metrics: DashboardMetric[];
+  byStatus: { status: TicketStatus; value: number; link: string }[];
+  byItPriority: { priority: RequestedPriority; value: number; link: string }[];
+  myOpenActions: {
+    id: number;
+    ticketId: number;
+    ticketNumber: string;
+    description: string;
+    status: ActionStatus;
+    actionAt: string;
+  }[];
+  urgentTickets: DashboardTicket[];
+  recentlyUpdated: DashboardTicket[];
+  /** Administrator only (BR-29). */
+  userCounts?: {
+    activeRequesters: number;
+    activeItStaff: number;
+    activeAdministrators: number;
+    inactiveUsers: number;
+    link: string;
+  };
+}
+
+export function getRequesterDashboard(): Promise<RequesterDashboardData> {
+  return request<RequesterDashboardData>("/api/dashboard/requester");
+}
+
+export function getStaffDashboard(): Promise<StaffDashboardData> {
+  return request<StaffDashboardData>("/api/dashboard/staff");
 }
 
 // --- Administrator user management (FR-16 to FR-20) ---
