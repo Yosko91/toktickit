@@ -24,6 +24,7 @@ import { ReadOnlyField } from "../components/Field";
 import { PriorityBadge, StatusBadge } from "../components/Badge";
 import { CommentPanel } from "../components/CommentPanel";
 import { AttachmentStateBadge } from "../components/Badge";
+import { ActionsTakenSection } from "../components/ActionsTakenSection";
 import { permittedNextStatuses, statusLabel } from "../utils/ticketWorkflow";
 import { formatFileSize } from "../utils/attachmentRules";
 
@@ -60,9 +61,11 @@ export function StaffTicketDetail() {
   const [priorityError, setPriorityError] = useState<string | null>(null);
   const [statusError, setStatusError] = useState<string | null>(null);
 
-  const load = useCallback(() => {
+  // quiet keeps the page on screen while it refreshes, so a section that just
+  // saved something (Actions Taken) is not unmounted by the loading panel.
+  const load = useCallback((quiet = false) => {
     if (!id) return;
-    setState("loading");
+    if (!quiet) setState("loading");
     setError(null);
     getStaffTicket(Number(id))
       .then((t) => {
@@ -163,7 +166,7 @@ export function StaffTicketDetail() {
         description={error ?? undefined}
         alert
         action={
-          <button type="button" className="zen-btn zen-btn-primary" onClick={load}>
+          <button type="button" className="zen-btn zen-btn-primary" onClick={() => load()}>
             Retry
           </button>
         }
@@ -311,6 +314,16 @@ export function StaffTicketDetail() {
           </div>
         </div>
       </div>
+
+      <ActionsTakenSection
+        ticketId={ticket.id}
+        ticketStatus={ticket.currentStatus}
+        actions={ticket.actionsTaken ?? []}
+        mode="staff"
+        currentUserId={user?.id}
+        staffUsers={owners}
+        onChanged={() => load(true)}
+      />
 
       <section className="zen-card">
         <h2 style={{ fontSize: 16, marginTop: 0 }}>Attachments ({ticket.attachments.length})</h2>

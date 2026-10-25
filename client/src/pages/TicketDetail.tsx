@@ -17,6 +17,7 @@ import { PriorityBadge, StatusBadge } from "../components/Badge";
 import { AttachmentSection } from "../components/AttachmentSection";
 import { RemoveAttachmentDialog } from "../components/RemoveAttachmentDialog";
 import { CommentPanel } from "../components/CommentPanel";
+import { ActionsTakenSection } from "../components/ActionsTakenSection";
 import { validateAttachmentFile } from "../utils/attachmentRules";
 
 function formatDate(iso: string): string {
@@ -235,6 +236,14 @@ export function TicketDetail() {
           </div>
         )
       )}
+
+      {/* Lab 4 - FR-05: every action is visible, nothing is editable. */}
+      <ActionsTakenSection
+        ticketId={ticket.id}
+        ticketStatus={ticket.currentStatus}
+        actions={ticket.actionsTaken ?? []}
+        mode="readonly"
+      />
 
       <AttachmentSection
         attachments={ticket.attachments}
