@@ -36,6 +36,15 @@ enum TicketStatus {
   CANCELLED
 }
 
+// Lab 4 - BR-08: the small status of one Action Taken. COMPLETED and CANCELLED
+// are final (BR-10).
+enum ActionStatus {
+  PLANNED
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
+}
+
 model Category {
   id        Int      @id @default(autoincrement())
   name      String   @unique
@@ -72,6 +81,8 @@ model User {
   sessions           Session[]
   publicComments     PublicComment[]
   internalNotes      InternalNote[]
+  actionsPerformed   ActionTaken[]   @relation("ActionPerformer")
+  actionsCreated     ActionTaken[]   @relation("ActionCreator")
 
   @@index([role])
 }
@@ -107,17 +118,25 @@ model Ticket {
   currentStatus       TicketStatus      @default(NEW)
   // BR-31: the Requester's own opinion, deliberately not a status.
   requesterResolvedAt DateTime?
+  // Lab 4 - BR-21: set when the ticket moves to RESOLVED, cleared on REOPENED.
+  resolvedAt          DateTime?
+  // Lab 4 - BR-22: optimistic concurrency. Only changes that overwrite
+  // something (owner, IT priority, status) move it, see specification.md
+  // section 7, decision 1.
+  version             Int               @default(1)
   createdAt           DateTime          @default(now())
   updatedAt           DateTime          @updatedAt
   attachments         Attachment[]
   publicComments      PublicComment[]
   internalNotes       InternalNote[]
+  actionsTaken        ActionTaken[]
 
   @@index([requesterId])
   @@index([categoryId])
   @@index([createdAt])
   @@index([ownerId])
   @@index([currentStatus])
+  @@index([updatedAt])
 }
 
 model Attachment {
@@ -163,4 +182,33 @@ model InternalNote {
   createdAt DateTime @default(now())
 
   @@index([ticketId])
+}
+
+// Lab 4 - one piece of work on a Ticket. BR-01: the ticket foreign key is
+// required and never changes. BR-02: the performer does not have to be the
+// Ticket Owner. BR-10: rows are never deleted, a wrong action is cancelled.
+model ActionTaken {
+  id               Int          @id @default(autoincrement())
+  ticketId         Int
+  ticket           Ticket       @relation(fields: [ticketId], references: [id])
+  actionAt         DateTime
+  description      String
+  result           String?
+  status           ActionStatus @default(COMPLETED)
+  performedById    Int
+  performedBy      User         @relation("ActionPerformer", fields: [performedById], references: [id])
+  createdById      Int
+  createdBy        User         @relation("ActionCreator", fields: [createdById], references: [id])
+  followUpRequired Boolean      @default(false)
+  followUpNote     String?
+  attachmentNotes  String?
+  // BR-14: a retry with the same id returns the saved row. Unique in the
+  // database so two retries arriving together cannot both insert.
+  clientRequestId  String?      @unique
+  version          Int          @default(1)
+  createdAt        DateTime     @default(now())
+  updatedAt        DateTime     @updatedAt
+
+  @@index([ticketId, actionAt])
+  @@index([performedById, status])
 }

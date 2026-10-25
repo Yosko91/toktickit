@@ -1,4 +1,4 @@
-import type { Attachment, Prisma } from "@prisma/client";
+import type { ActionTaken, Attachment, Prisma } from "@prisma/client";
 
 // Shared response shapes. See docs/lab-03/api-spec.md.
 
@@ -39,6 +39,39 @@ export function shapeMessage(message: MessageWithAuthor) {
   };
 }
 
+type ActionWithNames = ActionTaken & {
+  performedBy: { name: string };
+  createdBy: { name: string };
+};
+
+// Lab 4 - the Action Taken shape (api-spec.md section 2). Names come from the
+// joined user rows, never from the request body.
+export function shapeAction(action: ActionWithNames) {
+  return {
+    id: action.id,
+    ticketId: action.ticketId,
+    actionAt: action.actionAt,
+    description: action.description,
+    result: action.result,
+    status: action.status,
+    performedById: action.performedById,
+    performedByName: action.performedBy.name,
+    createdById: action.createdById,
+    createdByName: action.createdBy.name,
+    followUpRequired: action.followUpRequired,
+    followUpNote: action.followUpNote,
+    attachmentNotes: action.attachmentNotes,
+    version: action.version,
+    createdAt: action.createdAt,
+    updatedAt: action.updatedAt,
+  };
+}
+
+export const ACTION_INCLUDE = {
+  performedBy: { select: { name: true } },
+  createdBy: { select: { name: true } },
+} satisfies Prisma.ActionTakenInclude;
+
 type RequesterTicketPayload = Prisma.TicketGetPayload<{
   include: {
     requester: { select: { name: true } };
@@ -47,6 +80,7 @@ type RequesterTicketPayload = Prisma.TicketGetPayload<{
     relatedSystem: { select: { name: true } };
     attachments: true;
     publicComments: { include: { author: { select: { name: true; role: true } } } };
+    actionsTaken: { include: typeof ACTION_INCLUDE };
   };
 }>;
 
@@ -73,10 +107,14 @@ export function shapeTicketDetail(ticket: RequesterTicketPayload) {
     itPriority: ticket.itPriority,
     currentStatus: ticket.currentStatus,
     requesterResolvedAt: ticket.requesterResolvedAt,
+    resolvedAt: ticket.resolvedAt,
+    version: ticket.version,
     createdAt: ticket.createdAt,
     updatedAt: ticket.updatedAt,
     attachments: ticket.attachments.map(shapeAttachment),
     publicComments: ticket.publicComments.map(shapeMessage),
+    // FR-05: the Requester sees every Action Taken of their own ticket.
+    actionsTaken: ticket.actionsTaken.map(shapeAction),
   };
 }
 
@@ -102,5 +140,10 @@ export const REQUESTER_TICKET_INCLUDE = {
   publicComments: {
     orderBy: { createdAt: "asc" },
     include: { author: { select: { name: true, role: true } } },
+  },
+  // BR-15: stable order, the id breaks ties between actions at the same minute.
+  actionsTaken: {
+    orderBy: [{ actionAt: "asc" }, { id: "asc" }],
+    include: ACTION_INCLUDE,
   },
 } satisfies Prisma.TicketInclude;

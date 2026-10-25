@@ -1,0 +1,22 @@
+{
+  "User": {
+    "n": 77,
+    "sum": "df22ca60590fef046a84bad2be176d70"
+  },
+  "Ticket": {
+    "n": 250,
+    "sum": "e687263142ce3e5f40befb1d2ce91a3c"
+  },
+  "Attachment": {
+    "n": 90,
+    "sum": "17db425262046ca2a9b57fe51210fada"
+  },
+  "PublicComment": {
+    "n": 53,
+    "sum": "d9d8e85e1ff1f9c07fdb8e36c92b5c0c"
+  },
+  "InternalNote": {
+    "n": 42,
+    "sum": "ba397c82a451fe90749f20820cd08f3c"
+  }
+}

@@ -92,6 +92,18 @@ export async function cleanupUsers(userIds: Array<number | undefined>) {
   await prisma.internalNote.deleteMany({
     where: { OR: [{ ticketId: { in: ticketIds } }, { authorId: { in: ids } }] },
   });
+  // Lab 4 - actions and history rows point at tickets and users with RESTRICT
+  // foreign keys, so they go first. Tests are the only place rows are removed:
+  // the API itself never deletes an action (BR-10) or a history row (BR-20).
+  await prisma.actionTaken.deleteMany({
+    where: {
+      OR: [
+        { ticketId: { in: ticketIds } },
+        { performedById: { in: ids } },
+        { createdById: { in: ids } },
+      ],
+    },
+  });
 
   if (ticketIds.length > 0) {
     await prisma.attachment.deleteMany({ where: { ticketId: { in: ticketIds } } });
