@@ -252,7 +252,7 @@ Lab 2 and Lab 3 endpoints are unchanged. Error bodies stay `{ error, details?, c
 | AC-19 | Given a dashboard card, when it is clicked, then the matching filtered list opens and shows the same number of Tickets as the card. |
 | AC-20 | Given a Requester with no Tickets, when the dashboard opens, then every count is 0 and the lists show their empty message. |
 | AC-21 | Given the Lab 3 database, when the Lab 4 migrations run, then every Ticket, User, Attachment, Public Comment and Internal Note is still there, legacy Tickets have zero actions, and legacy Resolved/Closed Tickets have `resolvedAt`. |
-| AC-22 | Given the complete Lab 1 to Lab 3 test suites, when they run on `main` after Lab 4, then they all pass. |
+| AC-22 | Given the complete Lab 1 to Lab 3 test suites, when they run on `main` after Lab 4, then they all pass. Only the assertions that a Lab 4 rule changes on purpose may be updated, and each one is listed in `tests.md` section 6. |
 | AC-23 | Given the dashboards and the Ticket Detail with Actions Taken at 1440, 768 and 390 pixels, then there is no horizontal overflow, no clipped or overlapping control, and keyboard focus is visible. |
 | AC-24 | Given a failed save of the action form (network or conflict), then the values typed by the user are still in the form. |
 
