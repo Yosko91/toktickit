@@ -1,5 +1,5 @@
 import "dotenv/config";
-import type { RequestedPriority, Role, TicketStatus } from "@prisma/client";
+import type { ActionStatus, RequestedPriority, Role, TicketStatus } from "@prisma/client";
 import { getPrisma } from "../src/prisma.js";
 import { hashPassword } from "../src/services/password.js";
 import { generateTicketNumber } from "../src/services/ticketNumber.js";
@@ -78,6 +78,21 @@ interface SeedTicket {
   currentStatus: TicketStatus;
   comments?: { authorEmail: string; body: string }[];
   notes?: { authorEmail: string; body: string }[];
+  actions?: SeedAction[];
+}
+
+// Lab 4 - Actions Taken. The description is the natural key that keeps the
+// seed idempotent (BR-36). hoursAfterCreation places the action in time
+// relative to its ticket; a planned action is set one day in the future.
+interface SeedAction {
+  performerEmail: string;
+  recorderEmail?: string;
+  status: ActionStatus;
+  hoursAfterCreation: number;
+  description: string;
+  result?: string;
+  followUpNote?: string;
+  attachmentNotes?: string;
 }
 
 // Spread across requesters, statuses, priorities and assigned/unassigned
@@ -101,6 +116,24 @@ const TICKETS: SeedTicket[] = [
     notes: [
       { authorEmail: "michael.brown@toktickit.dev", body: "Battery health report shows 62 percent capacity. Ordering a replacement battery from stock." },
     ],
+    // Several actions, one of them by a colleague who is not the owner (BR-02).
+    actions: [
+      {
+        performerEmail: "michael.brown@toktickit.dev",
+        status: "COMPLETED",
+        hoursAfterCreation: 3,
+        description: "Ran the Windows battery health report on the laptop.",
+        result: "Full charge capacity is 62 percent of the design capacity. The battery must be replaced.",
+        attachmentNotes: "battery-report.html, saved from powercfg /batteryreport",
+      },
+      {
+        performerEmail: "kwan.thongchai@toktickit.dev",
+        recorderEmail: "michael.brown@toktickit.dev",
+        status: "PLANNED",
+        hoursAfterCreation: 0,
+        description: "Replace the battery when the new part arrives from the supplier.",
+      },
+    ],
   },
   {
     requesterEmail: "sarah.johnson@toktickit.dev",
@@ -118,6 +151,16 @@ const TICKETS: SeedTicket[] = [
     ],
     notes: [
       { authorEmail: "emily.davis@toktickit.dev", body: "Suspect MTU mismatch on the provider router. Waiting for the requester before escalating to the network team." },
+    ],
+    actions: [
+      {
+        performerEmail: "emily.davis@toktickit.dev",
+        status: "COMPLETED",
+        hoursAfterCreation: 2,
+        description: "Checked the VPN server logs for the account of the requester.",
+        result: "The connection times out just after the TLS handshake. Probably the MTU of the home router.",
+        followUpNote: "Ask the requester for the router model, then test with a lower MTU.",
+      },
     ],
   },
   {
@@ -173,6 +216,23 @@ const TICKETS: SeedTicket[] = [
     comments: [
       { authorEmail: "michael.brown@toktickit.dev", body: "A fix has been deployed for the save timeout. Please try again and tell us if the problem is gone." },
     ],
+    actions: [
+      {
+        performerEmail: "michael.brown@toktickit.dev",
+        status: "COMPLETED",
+        hoursAfterCreation: 4,
+        description: "Reproduced the freeze with a test class of 60 students.",
+        result: "The save request times out after 30 seconds when there are more than 50 rows.",
+        attachmentNotes: "screenshot-timeout.png in the ticket attachments",
+      },
+      {
+        performerEmail: "michael.brown@toktickit.dev",
+        status: "COMPLETED",
+        hoursAfterCreation: 28,
+        description: "Deployed the fix that saves the grades in batches of 20 rows.",
+        result: "Saving 60 students now takes about 3 seconds.",
+      },
+    ],
   },
   {
     requesterEmail: "david.lee@toktickit.dev",
@@ -185,6 +245,15 @@ const TICKETS: SeedTicket[] = [
     requestedPriority: "LOW",
     itPriority: "MEDIUM",
     currentStatus: "CLOSED",
+    actions: [
+      {
+        performerEmail: "emily.davis@toktickit.dev",
+        status: "COMPLETED",
+        hoursAfterCreation: 20,
+        description: "Installed a second access point in the library basement.",
+        result: "The signal is stable in the whole basement, no drop in a one hour test.",
+      },
+    ],
   },
   {
     requesterEmail: "sarah.johnson@toktickit.dev",
@@ -197,6 +266,48 @@ const TICKETS: SeedTicket[] = [
     requestedPriority: "LOW",
     itPriority: "LOW",
     currentStatus: "NEW",
+  },
+  // Lab 4 - a Reopened and a Cancelled ticket, so every status has data (handout 5.3).
+  {
+    requesterEmail: "jennifer.anderson@toktickit.dev",
+    ownerEmail: "michael.brown@toktickit.dev",
+    categoryName: "Account and Access",
+    relatedSystemName: "Email",
+    summary: "Outlook keeps asking for my password",
+    description:
+      "Outlook asks for my password again every morning, even after I tick remember me. It started after the password change last month.",
+    requestedPriority: "MEDIUM",
+    itPriority: "MEDIUM",
+    currentStatus: "REOPENED",
+    actions: [
+      {
+        performerEmail: "michael.brown@toktickit.dev",
+        status: "COMPLETED",
+        hoursAfterCreation: 2,
+        description: "Removed the old saved credentials in Windows Credential Manager.",
+        result: "Worked for one day, then the password prompt came back.",
+        followUpNote: "Check the token lifetime policy with the identity team.",
+      },
+      // An open action for Michael Brown, so his My Open Actions is not empty.
+      {
+        performerEmail: "michael.brown@toktickit.dev",
+        status: "PLANNED",
+        hoursAfterCreation: 0,
+        description: "Check the token lifetime policy with the identity team.",
+      },
+    ],
+  },
+  {
+    requesterEmail: "somchai.charoensuk@toktickit.dev",
+    ownerEmail: null,
+    categoryName: "Hardware",
+    relatedSystemName: "Printer",
+    summary: "Projector in room 301 does not turn on",
+    description:
+      "The projector in meeting room 301 does not turn on. The power light stays off even with a different power cable.",
+    requestedPriority: "LOW",
+    itPriority: "LOW",
+    currentStatus: "CANCELLED",
   },
 ];
 
@@ -241,12 +352,23 @@ async function main() {
     (await prisma.relatedSystem.findMany({ select: { id: true, name: true } })).map((s) => [s.name, s.id])
   );
 
-  // Idempotency for tickets: the summary is the natural key here, because the
-  // ticket number comes from a sequence and would differ on every run.
+  // Idempotency for tickets: summary plus requester is the natural key here,
+  // because the ticket number comes from a sequence and would differ on every
+  // run. Lab 4 fix: the summary alone was not enough, end-to-end tests had
+  // created tickets with the same summary for another requester, and the seed
+  // then skipped its own ticket.
   for (const ticket of TICKETS) {
-    const existing = await prisma.ticket.findFirst({ where: { summary: ticket.summary } });
-    if (existing) continue;
+    const existing = await prisma.ticket.findFirst({
+      where: { summary: ticket.summary, requesterId: userIdByEmail.get(ticket.requesterEmail)! },
+      orderBy: { id: "asc" },
+    });
+    if (existing) {
+      // Tickets from an earlier seed run only get the Lab 4 actions they miss.
+      await seedActions(existing, ticket.actions ?? [], userIdByEmail);
+      continue;
+    }
 
+    const resolved = ticket.currentStatus === "RESOLVED" || ticket.currentStatus === "CLOSED";
     const created = await prisma.ticket.create({
       data: {
         ticketNumber: await generateTicketNumber(),
@@ -259,6 +381,8 @@ async function main() {
         requestedPriority: ticket.requestedPriority,
         itPriority: ticket.itPriority,
         currentStatus: ticket.currentStatus,
+        // BR-21: a resolved or closed ticket has a resolution time.
+        resolvedAt: resolved ? new Date() : null,
       },
     });
 
@@ -280,9 +404,10 @@ async function main() {
         },
       });
     }
+    await seedActions(created, ticket.actions ?? [], userIdByEmail);
   }
 
-  const [users, requesters, staff, admins, tickets, comments, notes] = await Promise.all([
+  const [users, requesters, staff, admins, tickets, comments, notes, actions] = await Promise.all([
     prisma.user.count(),
     prisma.user.count({ where: { role: "REQUESTER" } }),
     prisma.user.count({ where: { role: "IT_STAFF" } }),
@@ -290,13 +415,52 @@ async function main() {
     prisma.ticket.count(),
     prisma.publicComment.count(),
     prisma.internalNote.count(),
+    prisma.actionTaken.count(),
   ]);
 
   console.log(
     `Seed complete - ${users} users (${requesters} requesters, ${staff} IT staff, ${admins} administrators), ` +
-      `${tickets} tickets, ${comments} public comments, ${notes} internal notes. ` +
+      `${tickets} tickets, ${comments} public comments, ${notes} internal notes, ${actions} actions taken. ` +
       `Development password for every seeded account: ${DEV_PASSWORD}`
   );
+}
+
+async function seedActions(
+  ticket: { id: number; createdAt: Date },
+  actions: SeedAction[],
+  userIdByEmail: Map<string, number>
+) {
+  const prisma = getPrisma();
+  const now = Date.now();
+
+  for (const action of actions) {
+    const exists = await prisma.actionTaken.findFirst({
+      where: { ticketId: ticket.id, description: action.description },
+    });
+    if (exists) continue;
+
+    // BR-07: never before the ticket, never in the future unless planned.
+    const actionAt =
+      action.status === "PLANNED"
+        ? new Date(now + 24 * 60 * 60 * 1000)
+        : new Date(Math.min(ticket.createdAt.getTime() + action.hoursAfterCreation * 3600 * 1000, now));
+    const performedById = userIdByEmail.get(action.performerEmail)!;
+
+    await prisma.actionTaken.create({
+      data: {
+        ticketId: ticket.id,
+        actionAt,
+        description: action.description,
+        result: action.result ?? null,
+        status: action.status,
+        performedById,
+        createdById: action.recorderEmail ? userIdByEmail.get(action.recorderEmail)! : performedById,
+        followUpRequired: Boolean(action.followUpNote),
+        followUpNote: action.followUpNote ?? null,
+        attachmentNotes: action.attachmentNotes ?? null,
+      },
+    });
+  }
 }
 
 main()

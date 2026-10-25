@@ -1,6 +1,6 @@
 import type { Prisma, RequestedPriority, TicketStatus } from "@prisma/client";
 import { getPrisma } from "../prisma.js";
-import { QueryValidationError } from "./ticketQuery.js";
+import { QueryValidationError, applyStatusGroup } from "./ticketQuery.js";
 import { ASSIGNABLE_STATUSES } from "./ticketWorkflow.js";
 
 // FR-10: the shared IT Staff queue over every Ticket, from every Requester.
@@ -27,6 +27,7 @@ export interface StaffQueueQuery {
   currentStatus?: string;
   itPriority?: string;
   ownerId?: string;
+  statusGroup?: string;
   sortBy?: string;
   sortDir?: string;
   page?: string;
@@ -104,6 +105,8 @@ export async function listStaffTickets(query: StaffQueueQuery) {
       where.ownerId = ownerId;
     }
   }
+
+  applyStatusGroup(where, query.statusGroup);
 
   const prisma = getPrisma();
   // Secondary sort by id keeps ordering stable when the primary key ties, which

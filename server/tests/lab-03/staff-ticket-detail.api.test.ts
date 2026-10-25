@@ -180,6 +180,19 @@ describe("IT Staff ticket operations", () => {
   // API-33 - BR-22
   it("walks a ticket through the permitted chain to RESOLVED", async () => {
     const ticket = await newTicket({ ownerId: staffId });
+    // Changed on purpose in Lab 4: BR-18 (resolution gate) needs one completed
+    // Action Taken before RESOLVED. The chain under test is the same.
+    await getPrisma().actionTaken.create({
+      data: {
+        ticketId: ticket.id,
+        actionAt: new Date(),
+        description: "Fixed the problem",
+        result: "Works",
+        status: "COMPLETED",
+        performedById: staffId,
+        createdById: staffId,
+      },
+    });
 
     for (const status of ["OPEN", "IN_PROGRESS", "RESOLVED"]) {
       const response = await request(app)

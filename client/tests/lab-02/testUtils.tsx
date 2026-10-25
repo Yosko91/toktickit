@@ -3,6 +3,7 @@ import { render } from "@testing-library/react";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
 import { AuthProvider } from "../../src/context/AuthContext";
 import type {
+  ActionTaken,
   AssignableUser,
   AuthUser,
   RequestedPriority,
@@ -98,10 +99,14 @@ export function makeTicketDetail(overrides: Partial<TicketDetail> = {}): TicketD
     itPriority: "MEDIUM" as RequestedPriority,
     currentStatus: "NEW" as TicketStatus,
     requesterResolvedAt: null,
+    resolvedAt: null,
+    version: 1,
     createdAt: "2026-08-20T09:00:00.000Z",
     updatedAt: "2026-08-20T09:00:00.000Z",
     attachments: [],
     publicComments: [],
+    actionsTaken: [],
+    statusHistory: [],
     ...overrides,
   };
 }
@@ -130,6 +135,29 @@ export function makeStaffTicketDetail(
   overrides: Partial<StaffTicketDetail> = {}
 ): StaffTicketDetail {
   return { ...makeTicketDetail(), internalNotes: [], ...overrides };
+}
+
+/** Lab 4 - one Action Taken as the API returns it. */
+export function makeAction(overrides: Partial<ActionTaken> = {}): ActionTaken {
+  return {
+    id: 1,
+    ticketId: 1,
+    actionAt: "2026-08-20T10:00:00.000Z",
+    description: "Ran the battery health report.",
+    result: "Battery capacity is 62 percent.",
+    status: "COMPLETED",
+    performedById: 21,
+    performedByName: "Michael Brown",
+    createdById: 21,
+    createdByName: "Michael Brown",
+    followUpRequired: false,
+    followUpNote: null,
+    attachmentNotes: null,
+    version: 1,
+    createdAt: "2026-08-20T10:05:00.000Z",
+    updatedAt: "2026-08-20T10:05:00.000Z",
+    ...overrides,
+  };
 }
 
 export const ASSIGNABLE_USERS: AssignableUser[] = [

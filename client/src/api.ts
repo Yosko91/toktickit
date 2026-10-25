@@ -17,6 +17,9 @@ export type TicketStatus =
   | "REOPENED"
   | "CANCELLED";
 
+// Lab 4 - BR-08.
+export type ActionStatus = "PLANNED" | "IN_PROGRESS" | "COMPLETED" | "CANCELLED";
+
 export interface AuthUser {
   id: number;
   name: string;
@@ -54,6 +57,36 @@ export interface TicketMessage {
   authorRole: Role;
   body: string;
   createdAt: string;
+}
+
+/** Lab 4 - docs/lab-04/api-spec.md section 2. */
+export interface ActionTaken {
+  id: number;
+  ticketId: number;
+  actionAt: string;
+  description: string;
+  result: string | null;
+  status: ActionStatus;
+  performedById: number;
+  performedByName: string;
+  createdById: number;
+  createdByName: string;
+  followUpRequired: boolean;
+  followUpNote: string | null;
+  attachmentNotes: string | null;
+  version: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+/** Lab 4 - one row of the append-only status history (BR-20). */
+export interface StatusChange {
+  id: number;
+  fromStatus: TicketStatus;
+  toStatus: TicketStatus;
+  changedById: number;
+  changedByName: string;
+  changedAt: string;
 }
 
 export interface TicketListItem {
@@ -96,10 +129,14 @@ export interface TicketDetail {
   itPriority: RequestedPriority;
   currentStatus: TicketStatus;
   requesterResolvedAt: string | null;
+  resolvedAt: string | null;
+  version: number;
   createdAt: string;
   updatedAt: string;
   attachments: AttachmentMeta[];
   publicComments: TicketMessage[];
+  actionsTaken: ActionTaken[];
+  statusHistory: StatusChange[];
 }
 
 export interface CreateTicketInput {
@@ -115,6 +152,8 @@ export interface TicketListParams {
   categoryId?: number;
   requestedPriority?: RequestedPriority;
   currentStatus?: TicketStatus;
+  /** Lab 4 - BR-25: "active" keeps only the tickets still being worked on. */
+  statusGroup?: "active";
   sortBy?: "createdAt" | "ticketNumber" | "summary" | "requestedPriority";
   sortDir?: "asc" | "desc";
   page?: number;
@@ -343,6 +382,7 @@ export interface StaffQueueParams {
   itPriority?: RequestedPriority;
   /** A user id, or the literal "unassigned" to find unclaimed work. */
   ownerId?: number | "unassigned";
+  statusGroup?: "active";
   sortBy?: "createdAt" | "updatedAt" | "ticketNumber" | "itPriority" | "currentStatus";
   sortDir?: "asc" | "desc";
   page?: number;
@@ -368,33 +408,39 @@ export function getAssignableUsers(): Promise<AssignableUser[]> {
   return request<AssignableUser[]>("/api/staff/assignable-users");
 }
 
+// Lab 4 - BR-22: the version is the one of the ticket on screen. The API
+// answers 409 STALE_UPDATE when somebody changed the ticket since.
+
 export function setTicketOwner(
   id: number,
-  ownerId: number | null
-): Promise<{ id: number; ownerId: number | null; ownerName: string | null }> {
+  ownerId: number | null,
+  version?: number
+): Promise<{ id: number; ownerId: number | null; ownerName: string | null; version: number }> {
   return request(`/api/staff/tickets/${id}/owner`, {
     method: "PATCH",
-    body: JSON.stringify({ ownerId }),
+    body: JSON.stringify({ ownerId, version }),
   });
 }
 
 export function setItPriority(
   id: number,
-  itPriority: RequestedPriority
-): Promise<{ id: number; itPriority: RequestedPriority; requestedPriority: RequestedPriority }> {
+  itPriority: RequestedPriority,
+  version?: number
+): Promise<{ id: number; itPriority: RequestedPriority; requestedPriority: RequestedPriority; version: number }> {
   return request(`/api/staff/tickets/${id}/it-priority`, {
     method: "PATCH",
-    body: JSON.stringify({ itPriority }),
+    body: JSON.stringify({ itPriority, version }),
   });
 }
 
 export function setTicketStatus(
   id: number,
-  currentStatus: TicketStatus
-): Promise<{ id: number; currentStatus: TicketStatus }> {
+  currentStatus: TicketStatus,
+  version?: number
+): Promise<{ id: number; currentStatus: TicketStatus; version: number; resolvedAt: string | null }> {
   return request(`/api/staff/tickets/${id}/status`, {
     method: "PATCH",
-    body: JSON.stringify({ currentStatus }),
+    body: JSON.stringify({ currentStatus, version }),
   });
 }
 
@@ -403,6 +449,102 @@ export function postInternalNote(ticketId: number, body: string): Promise<Ticket
     method: "POST",
     body: JSON.stringify({ body }),
   });
+}
+
+// --- Lab 4 Actions Taken (api-spec.md section 3) ---
+
+export interface ActionInput {
+  actionAt: string;
+  description: string;
+  result: string | null;
+  status: ActionStatus;
+  performedById: number;
+  followUpRequired: boolean;
+  followUpNote: string | null;
+  attachmentNotes: string | null;
+}
+
+export function createAction(
+  ticketId: number,
+  input: ActionInput & { clientRequestId: string }
+): Promise<ActionTaken> {
+  return request<ActionTaken>(`/api/staff/tickets/${ticketId}/actions`, {
+    method: "POST",
+    body: JSON.stringify(input),
+  });
+}
+
+export function updateAction(
+  ticketId: number,
+  actionId: number,
+  input: ActionInput & { version: number }
+): Promise<ActionTaken> {
+  return request<ActionTaken>(`/api/staff/tickets/${ticketId}/actions/${actionId}`, {
+    method: "PATCH",
+    body: JSON.stringify(input),
+  });
+}
+
+// --- Lab 4 dashboards (api-spec.md section 6) ---
+
+export interface DashboardMetric {
+  key: string;
+  label: string;
+  value: number;
+  /** Where the card drills down to: a client route, or an anchor on the page. */
+  link: string;
+}
+
+export interface DashboardTicket {
+  id: number;
+  ticketNumber: string;
+  summary: string;
+  currentStatus: TicketStatus;
+  itPriority: RequestedPriority;
+  ownerName: string | null;
+  updatedAt: string;
+  resolvedAt: string | null;
+}
+
+export interface RequesterDashboardData {
+  generatedAt: string;
+  metrics: DashboardMetric[];
+  needsAttention: DashboardTicket[];
+  recentlyUpdated: DashboardTicket[];
+  recentlyResolved: DashboardTicket[];
+}
+
+export interface StaffDashboardData {
+  generatedAt: string;
+  metrics: DashboardMetric[];
+  byStatus: { status: TicketStatus; value: number; link: string }[];
+  byItPriority: { priority: RequestedPriority; value: number; link: string }[];
+  myOpenActions: {
+    id: number;
+    ticketId: number;
+    ticketNumber: string;
+    description: string;
+    status: ActionStatus;
+    actionAt: string;
+  }[];
+  urgentTickets: DashboardTicket[];
+  recentlyUpdated: DashboardTicket[];
+  /** Administrator only (BR-29). */
+  userCounts?: {
+    activeRequesters: number;
+    activeItStaff: number;
+    activeAdministrators: number;
+    inactiveUsers: number;
+    link: string;
+  };
+}
+
+export function getRequesterDashboard(): Promise<RequesterDashboardData> {
+  return request<RequesterDashboardData>("/api/dashboard/requester");
+}
+
+export function getStaffDashboard(): Promise<StaffDashboardData> {
+  return request<StaffDashboardData>("/api/dashboard/staff");
 }
 
 // --- Administrator user management (FR-16 to FR-20) ---

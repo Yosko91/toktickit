@@ -290,6 +290,8 @@ a {
   cursor: pointer;
   min-height: 40px;
   line-height: 1.2;
+  /* Lab 4: a link styled as a button (Create Ticket, View all) was underlined. */
+  text-decoration: none;
 }
 
 .zen-btn-primary {
@@ -588,6 +590,15 @@ a {
   .zen-form-grid,
   .zen-form-grid.zen-form-grid--3 {
     grid-template-columns: 1fr;
+  }
+}
+
+/* Lab 4 fix: side by side, the second card (Internal Notes on the staff
+   Ticket Detail) still got the stacked-card top margin and sat lower than the
+   first one. Only stacked cards need that margin. */
+@media (min-width: 768px) {
+  .zen-form-grid > .zen-card + .zen-card {
+    margin-top: 0;
   }
 }
 
@@ -916,4 +927,317 @@ a {
   gap: var(--zen-space-3);
   margin-top: var(--zen-space-4);
   flex-wrap: wrap;
+}
+
+/* ---------- Lab 4 - shared helpers ---------- */
+
+.zen-card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--zen-space-3);
+  flex-wrap: wrap;
+  margin-bottom: var(--zen-space-3);
+}
+.zen-card-title {
+  font-size: 16px;
+  margin: 0;
+}
+.zen-muted {
+  color: var(--zen-text-muted);
+  margin: 0;
+}
+
+/* ---------- Lab 4 - Actions Taken (ui-spec.md section 6) ---------- */
+
+.zen-badge-action-planned {
+  background: var(--zen-neutral-bg);
+  color: var(--zen-neutral-text);
+}
+.zen-badge-action-in-progress {
+  background: var(--zen-warning-bg);
+  color: var(--zen-warning);
+}
+.zen-badge-action-completed {
+  background: var(--zen-pale);
+  color: var(--zen-primary);
+}
+.zen-badge-action-cancelled {
+  background: var(--zen-neutral-bg);
+  color: var(--zen-neutral-text);
+  text-decoration: line-through;
+}
+
+.zen-actions-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.zen-action-row {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--zen-space-4);
+  padding: var(--zen-space-3) 0;
+  border-top: 1px solid var(--zen-border);
+}
+.zen-action-body {
+  flex: 1;
+  min-width: 0;
+}
+.zen-action-head {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--zen-space-2);
+  font-size: 13px;
+  color: var(--zen-text-muted);
+}
+.zen-action-description {
+  font-weight: 600;
+  margin: var(--zen-space-1) 0 0;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.zen-action-result,
+.zen-action-meta,
+.zen-action-attachment {
+  margin: var(--zen-space-1) 0 0;
+  font-size: 14px;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.zen-action-meta,
+.zen-action-attachment {
+  color: var(--zen-text-muted);
+}
+.zen-action-followup {
+  display: inline-block;
+  margin: var(--zen-space-2) 0 0;
+  padding: 2px var(--zen-space-2);
+  font-size: 14px;
+  border-radius: var(--zen-radius);
+  background: var(--zen-warning-bg);
+  color: var(--zen-warning);
+  overflow-wrap: anywhere;
+}
+
+.zen-action-form {
+  border: 1px solid var(--zen-border);
+  border-radius: var(--zen-radius);
+  background: var(--zen-bg);
+  padding: var(--zen-space-4);
+  margin-bottom: var(--zen-space-4);
+}
+.zen-action-form-title {
+  font-size: 15px;
+  margin: 0 0 var(--zen-space-3);
+}
+.zen-action-form-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0 var(--zen-space-4);
+}
+.zen-textarea--short {
+  min-height: 72px;
+}
+.zen-checkbox-row {
+  display: flex;
+  align-items: center;
+  gap: var(--zen-space-2);
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.zen-checkbox-row input {
+  width: 18px;
+  height: 18px;
+}
+
+@media (max-width: 767px) {
+  .zen-action-form-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .zen-action-row {
+    flex-direction: column;
+    gap: var(--zen-space-2);
+  }
+  .zen-action-row > .zen-btn {
+    width: 100%;
+  }
+}
+
+/* ---------- Lab 4 - Status History (ui-spec.md section 8) ---------- */
+
+.zen-history-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.zen-history-row {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: var(--zen-space-1) var(--zen-space-4);
+  padding: var(--zen-space-2) 0;
+  border-top: 1px solid var(--zen-border);
+  font-size: 14px;
+}
+.zen-history-move {
+  font-weight: 600;
+}
+.zen-history-meta {
+  color: var(--zen-text-muted);
+}
+
+/* ---------- Lab 4 - Dashboards (ui-spec.md sections 2 to 4) ---------- */
+
+.zen-metric-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: var(--zen-space-4);
+  margin-bottom: var(--zen-space-5);
+}
+.zen-metric-card {
+  display: flex;
+  flex-direction: column;
+  gap: var(--zen-space-1);
+  background: var(--zen-surface);
+  border: 1px solid var(--zen-border);
+  border-radius: var(--zen-radius-lg);
+  box-shadow: var(--zen-shadow);
+  padding: var(--zen-space-4) var(--zen-space-5);
+  min-width: 0;
+}
+.zen-metric-label {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--zen-text-muted);
+}
+.zen-metric-value {
+  font-size: 34px;
+  font-weight: 700;
+  line-height: 1.1;
+  color: var(--zen-text);
+}
+.zen-metric-detail {
+  font-size: 12px;
+  color: var(--zen-text-muted);
+  overflow-wrap: anywhere;
+}
+.zen-metric-link {
+  margin-top: auto;
+  padding-top: var(--zen-space-2);
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--zen-secondary);
+  align-self: flex-start;
+}
+
+.zen-dashboard-columns {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--zen-space-5);
+  margin-bottom: var(--zen-space-5);
+  align-items: start;
+}
+/* Cards side by side in a grid must not get the stacked-card top margin. */
+.zen-dashboard-columns > .zen-card + .zen-card {
+  margin-top: 0;
+}
+
+.zen-mini-list,
+.zen-count-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.zen-mini-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--zen-space-3);
+  padding: var(--zen-space-2) 0;
+  border-top: 1px solid var(--zen-border);
+}
+.zen-mini-link {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  color: var(--zen-text);
+  text-decoration: none;
+}
+.zen-mini-link:hover .zen-mini-number {
+  text-decoration: underline;
+}
+.zen-mini-number {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--zen-secondary);
+}
+.zen-mini-summary {
+  font-size: 14px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.zen-mini-meta {
+  display: flex;
+  align-items: center;
+  gap: var(--zen-space-2);
+  flex-shrink: 0;
+  font-size: 12px;
+  color: var(--zen-text-muted);
+}
+
+.zen-count-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--zen-space-2);
+}
+.zen-count-link {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--zen-space-2);
+  padding: var(--zen-space-1) var(--zen-space-3) var(--zen-space-1) var(--zen-space-1);
+  border: 1px solid var(--zen-border);
+  border-radius: 999px;
+  color: var(--zen-text);
+  text-decoration: none;
+}
+.zen-count-link:hover {
+  background: var(--zen-pale);
+}
+.zen-count-value {
+  font-weight: 700;
+}
+
+.zen-quick-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--zen-space-3);
+}
+
+@media (max-width: 991px) {
+  .zen-metric-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .zen-dashboard-columns {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+@media (max-width: 767px) {
+  .zen-mini-row {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: var(--zen-space-1);
+  }
+  .zen-mini-summary {
+    white-space: normal;
+  }
+}
+@media (max-width: 479px) {
+  .zen-metric-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
 }

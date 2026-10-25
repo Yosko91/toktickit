@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import {
   ApiError,
   getAssignableUsers,
@@ -35,13 +35,18 @@ function formatDate(iso: string): string {
 
 export function StaffTicketQueue() {
   const navigate = useNavigate();
+  // Lab 4 - FR-12: a dashboard card opens the queue with its filter in the URL.
+  // It is only read once, as the starting value of each filter.
+  const [params] = useSearchParams();
 
   const [search, setSearch] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
   const [categoryId, setCategoryId] = useState("");
-  const [status, setStatus] = useState("");
-  const [itPriority, setItPriority] = useState("");
-  const [ownerId, setOwnerId] = useState("");
+  const [status, setStatus] = useState(
+    () => params.get("currentStatus") ?? (params.get("statusGroup") === "active" ? "active" : "")
+  );
+  const [itPriority, setItPriority] = useState(() => params.get("itPriority") ?? "");
+  const [ownerId, setOwnerId] = useState(() => params.get("ownerId") ?? "");
   const [sortBy, setSortBy] = useState<SortField>("createdAt");
   const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
   const [page, setPage] = useState(1);
@@ -80,7 +85,8 @@ export function StaffTicketQueue() {
     listStaffTickets({
       search: debouncedSearch || undefined,
       categoryId: categoryId ? Number(categoryId) : undefined,
-      currentStatus: (status || undefined) as TicketStatus | undefined,
+      currentStatus: (status && status !== "active" ? status : undefined) as TicketStatus | undefined,
+      statusGroup: status === "active" ? "active" : undefined,
       itPriority: (itPriority || undefined) as RequestedPriority | undefined,
       ownerId: ownerId === "unassigned" ? "unassigned" : ownerId ? Number(ownerId) : undefined,
       sortBy,
@@ -186,6 +192,7 @@ export function StaffTicketQueue() {
             onChange={(e) => setStatus(e.target.value)}
           >
             <option value="">All statuses</option>
+            <option value="active">Active (not finished)</option>
             {ALL_STATUSES.map((s) => (
               <option key={s} value={s}>
                 {statusLabel(s)}
