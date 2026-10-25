@@ -57,6 +57,9 @@ export function MyTickets() {
   const [state, setState] = useState<"loading" | "ready" | "error">("loading");
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<TicketListResponse | null>(null);
+  // Lab 4 fix: Retry used setPage(p => p), which changes nothing, so React
+  // never ran the request again. A counter forces the reload.
+  const [reloadKey, setReloadKey] = useState(0);
 
   // Simplification (documented): filters always start empty on mount, so
   // the very first response for a Requester is the unfiltered baseline used
@@ -106,7 +109,7 @@ export function MyTickets() {
       cancelled = true;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user?.id, debouncedSearch, categoryId, priority, status, sortBy, sortDir, page]);
+  }, [user?.id, debouncedSearch, categoryId, priority, status, sortBy, sortDir, page, reloadKey]);
 
   function handleSort(field: SortField) {
     if (field === sortBy) {
@@ -224,7 +227,7 @@ export function MyTickets() {
           description={error ?? undefined}
           alert
           action={
-            <button type="button" className="zen-btn zen-btn-primary" onClick={() => setPage((p) => p)}>
+            <button type="button" className="zen-btn zen-btn-primary" onClick={() => setReloadKey((k) => k + 1)}>
               Retry
             </button>
           }

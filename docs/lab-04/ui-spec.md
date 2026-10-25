@@ -135,20 +135,22 @@ get wrong.
 
 ## 10. Visual and accessibility checklist
 
-Filled in at the end of the sprint from the visual test run and a manual check.
+Filled in at the end of the sprint from the visual test run (`e2e/lab-04/responsive-visual.spec.ts`)
+and a manual look at every screenshot.
 
 | Check | Result |
 |---|---|
-| Same Zen Green tokens, cards, buttons and badges on all Lab 4 screens | Planned |
-| Dashboard navigation item for each role, active page marked | Planned |
-| Metric cards: label, value, accessible "View" link, zero shown | Planned |
-| Actions Taken: editable rows vs read only rows clearly different | Planned |
-| Requester view has no action controls | Planned |
-| Validation messages under their field | Planned |
-| Keyboard: every new control reachable with Tab, focus ring visible | Planned |
-| No clipping or overlap at 1440, 768, 390 | Planned |
-| No horizontal overflow at 1440, 768, 390 | Planned |
-| No leftover placeholder text or temporary controls | Planned |
+| Same Zen Green tokens, cards, buttons and badges on all Lab 4 screens | Pass, only new classes in the same stylesheet |
+| Dashboard navigation item for each role, active page marked | Pass, UI-14 |
+| Metric cards: label, value, accessible "View" link, zero shown | Pass, UI-01, UI-03, UI-04 |
+| Actions Taken: editable rows vs read only rows clearly different | Pass, Edit button only on Planned and In Progress rows, UI-08 |
+| Requester view has no action controls | Pass, UI-10 and E2E-01 |
+| Validation messages under their field | Pass, UI-07 and the create-form-validation screenshots |
+| Keyboard: every new control reachable with Tab, focus ring visible | Pass, A11Y-01 |
+| No clipping or overlap at 1440, 768, 390 | Pass after one fix: the Internal Notes card was lower than the Public Comments card |
+| No horizontal overflow at 1440, 768, 390 | Pass, measured by VIS-01 to VIS-03 |
+| No console error on the Lab 4 screens | Pass, checked in VIS-01 to VIS-03 |
+| No leftover placeholder text or temporary controls | Pass after two fixes: the My Tickets status filter only had "New", and its Retry button did nothing |
 
 ## 11. Screenshot evidence
 

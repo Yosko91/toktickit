@@ -288,6 +288,13 @@ const TICKETS: SeedTicket[] = [
         result: "Worked for one day, then the password prompt came back.",
         followUpNote: "Check the token lifetime policy with the identity team.",
       },
+      // An open action for Michael Brown, so his My Open Actions is not empty.
+      {
+        performerEmail: "michael.brown@toktickit.dev",
+        status: "PLANNED",
+        hoursAfterCreation: 0,
+        description: "Check the token lifetime policy with the identity team.",
+      },
     ],
   },
   {

@@ -3,126 +3,116 @@
 IT service desk application for Account and Access, Hardware, Software, and Network requests.
 
 - **Lab 1** delivered a vertical slice proving the whole stack works.
-- **Lab 2** delivers the Requester-facing ticketing MVP: a temporary Development Requester
-  selector (testing mechanism, not authentication - see `docs/lab-02/specification.md`), Create
-  Ticket, My Tickets (search/filter/sort/pagination), Requester Ticket Detail, and the
-  Attachment lifecycle (upload, download, soft removal), all under one Zen Green visual system.
+- **Lab 2** delivered the Requester ticketing MVP: Create Ticket, My Tickets, Ticket Detail and the
+  Attachment lifecycle, under one Zen Green visual system.
+- **Lab 3** replaced the temporary Development Requester selector with real authentication and
+  server-side role-based authorization, and added the IT Staff queue and ticket operations, Public
+  Comments, Internal Notes and Administrator user management.
+- **Lab 4** adds Actions Taken under each Ticket, a backend resolution gate and an append-only
+  status history, stale-update protection, a dashboard for every role, and the final regression and
+  hardening of Labs 1 to 3.
 
-- **Lab 3** replaces the Development Requester selector with real authentication and server-side
-  role-based authorization, and adds the first IT Staff workflow and Administrator user
-  management. Three roles now exist: Requester, IT Staff and Administrator.
-
-Stack: **React + TypeScript + Vite -> Express REST API -> Prisma ORM -> PostgreSQL**, with
-Playwright for end-to-end and visual/responsive evidence.
-
-## Running it locally
-
-```
-cd server && npm install && npx prisma migrate deploy && npm run prisma:seed && npm run dev
-cd client && npm install && npm run dev
-```
-
-The client runs on http://localhost:5173 and the API on http://localhost:3000.
-
-### Development accounts
-
-Every seeded account uses the same password, **`TokTick!2026`**. These are local development
-values only: they exist to make the three roles testable, they are not real credentials, and the
-seed that creates them would never be run against anything but a local database.
-
-| Role | Email | Notes |
-|---|---|---|
-| Requester | `jennifer.anderson@toktickit.dev` | Has tickets; used for most evidence |
-| Requester | `priya.nair@toktickit.dev` | Never given a ticket, so the empty state is always reachable |
-| Requester | `nina.sato@toktickit.dev` | Starts with an initial password, so the first-login change is always demonstrable |
-| Requester | `alex.turner@toktickit.dev` | Inactive, so a refused login can be shown |
-| IT Staff | `michael.brown@toktickit.dev` | Owns seeded tickets |
-| IT Staff | `robert.wilson@toktickit.dev` | Inactive |
-| Administrator | `john.smith@toktickit.dev` | User Management |
-| Administrator | `lisa.martinez@toktickit.dev` | A second administrator, so the last-administrator rule has something to protect |
-
-### Tests
-
-```
-cd server && npm test      # 162 tests: unit, API and authorization, against the real database
-cd client && npm test      # 53 component tests
-npx playwright test        # 40 end-to-end, responsive and visual tests
-```
-
-## Repository structure
-
-```
-toktickit/
-├── client/                       React + TypeScript + Vite frontend
-│   ├── src/
-│   │   ├── api.ts                REST client for the full Lab 2 contract
-│   │   ├── context/               AuthContext (authenticated session)
-│   │   ├── components/            AppShell, form fields, badges, attachment UI, ...
-│   │   ├── pages/                 Login, ChangePassword, CreateTicket, MyTickets, TicketDetail,
-│   │   │                          StaffTicketQueue, StaffTicketDetail, UserManagement
-│   │   └── styles/                Zen Green theme (docs/lab-02/ui-spec.md)
-│   └── tests/lab-01/, lab-02/    Vitest + Testing Library
-├── server/                       Node.js + Express + TypeScript backend
-│   ├── prisma/                    schema.prisma, seed.ts, migrations/
-│   ├── src/
-│   │   ├── routes/                auth, categories, related-systems, tickets, staff, admin users
-│   │   ├── middleware/             session authentication, password-change gate, role checks
-│   │   └── services/               password hashing, sessions, ticket workflow, queries
-│   ├── uploads/lab-02/            Uploaded attachment files (git-ignored, created on demand)
-│   └── tests/lab-01/, lab-02/    Vitest + Supertest, against the real dev database
-├── e2e/lab-02/                    Playwright E2E + responsive/visual tests
-├── artifacts/lab-02/screenshots/  Committed Create Ticket / My Tickets / Ticket Detail screenshots
-├── docs/lab-01/, lab-02/, lab-03/ specification.md, tests.md, ui-spec.md, api-spec.md,
-│                                  reviewer.md, ai-use.md
-├── playwright.config.ts
-├── package.json                  Root-level: Playwright only (client/server have their own)
-└── README.md
-```
+Stack: **React + TypeScript + Vite -> Express REST API -> Prisma ORM -> PostgreSQL**, with Vitest,
+Supertest, Testing Library and Playwright.
 
 ## Prerequisites
 
 - Node.js 20 or later
-- PostgreSQL 15 or later, running locally
-- A database named `toktickit`
+- PostgreSQL 15 or later, running locally, with a database named `toktickit`
 
 ## Setup
 
-### 1. Database
-
-```sql
-CREATE DATABASE toktickit;
-```
-
-### 2. Backend
-
 ```bash
+# 1. Backend
 cd server
 npm install
 cp .env.example .env          # then edit DATABASE_URL with your credentials
-npx prisma migrate dev
-npm run prisma:seed           # idempotent - safe to run again
+npx prisma migrate deploy     # applies the Lab 1 to Lab 4 migrations
+npm run prisma:seed           # idempotent, safe to run again
 npm run dev                   # http://localhost:3000
-```
 
-The seed creates the four Categories, seven Related Systems, and seven Development Requesters
-(six active, one inactive - see `server/prisma/seed.ts`) needed by the Lab 2 screens.
-
-### 3. Frontend
-
-```bash
+# 2. Frontend (second terminal)
 cd client
 npm install
 cp .env.example .env          # VITE_API_URL=http://localhost:3000
 npm run dev                   # http://localhost:5173
 ```
 
-### 4. End-to-end tests (optional, root of the repo)
+If port 5173 is already used by another application, start the client on another port and tell
+the API to accept it:
 
 ```bash
-npm install                   # installs @playwright/test at the repo root
-npx playwright install chromium
-npx playwright test           # starts/reuses both dev servers automatically
+cd server && CLIENT_ORIGIN=http://localhost:5180 npm run dev
+cd client && npx vite --port 5180 --strictPort
 ```
+
+### Development accounts
+
+Every seeded account uses the same password, **`TokTick!2026`**. These are local development
+values only, not real credentials.
+
+| Role | Email | Notes |
+|---|---|---|
+| Requester | `jennifer.anderson@toktickit.dev` | Has tickets, with Actions Taken |
+| Requester | `sarah.johnson@toktickit.dev` | Has a ticket Waiting for Requester |
+| Requester | `priya.nair@toktickit.dev` | Never has a ticket, for the empty states |
+| Requester | `nina.sato@toktickit.dev` | Starts with an initial password (first-login change) |
+| Requester | `alex.turner@toktickit.dev` | Inactive |
+| IT Staff | `michael.brown@toktickit.dev` | Owns seeded tickets, has an open action |
+| IT Staff | `emily.davis@toktickit.dev`, `kwan.thongchai@toktickit.dev` | Colleagues for actions done by someone other than the owner |
+| IT Staff | `robert.wilson@toktickit.dev` | Inactive, refused as performer or owner |
+| Administrator | `john.smith@toktickit.dev` | User Management, dashboard with user counts |
+| Administrator | `lisa.martinez@toktickit.dev` | Second administrator |
+
+## Migrations, rollback and seed
+
+`npx prisma migrate deploy` applies the two Lab 4 migrations on top of the Lab 3 database without
+losing data (`docs/lab-04/specification.md` section 7). To check it on your own data:
+
+```bash
+cd server
+npx tsx scripts/lab-04-migration-check.ts snapshot before.json   # before migrating
+npx prisma migrate deploy
+npx tsx scripts/lab-04-migration-check.ts snapshot after.json
+npx tsx scripts/lab-04-migration-check.ts compare before.json after.json
+npx tsx scripts/lab-04-migration-check.ts rollback               # tests the rollback on a copy
+```
+
+The rollback script is `server/prisma/rollback/lab4_down.sql`. It removes only what Lab 4 added;
+take a `pg_dump` first because the Actions Taken and the history are lost. The `rollback` check
+needs the dev server to be stopped (copying a database needs no open connection on it).
+
+## Tests
+
+```bash
+cd server && npm test      # 220 tests: unit, API, authorization, dashboards vs SQL, migration
+cd client && npm test      # 72 component tests
+npx playwright test        # 57 end-to-end, responsive and visual tests (repo root)
+```
+
+The API tests use the real PostgreSQL dev database and clean up what they create; the test files
+run one after another because they share that database. Playwright starts or reuses both dev
+servers. Use `E2E_CLIENT_URL=http://localhost:5180 npx playwright test` when the client runs on
+another port. The end-to-end tests leave their tickets in the dev database (see
+`docs/lab-04/tests.md` section 7). Test plans and results: `docs/lab-0X/tests.md`.
+
+## Demonstration
+
+1. Sign in as `jennifer.anderson@toktickit.dev`. You land on My Tickets. Open **Dashboard**: four
+   counts, tickets that need you, recently updated and resolved tickets. Click a "View" link: My
+   Tickets opens with the same filter.
+2. Sign in as `michael.brown@toktickit.dev`. Open **Dashboard**: unassigned, assigned to me, my open
+   actions, counts by status and IT priority, urgent tickets. Click Unassigned: the queue shows the
+   same number of tickets.
+3. Open the ticket "Laptop battery drains quickly". The **Actions Taken** card shows a completed
+   action and a planned one performed by a colleague. Add an action, edit the planned one, move it
+   to In Progress and then Completed with a result.
+4. Try to resolve a ticket with an open action: the refusal is shown under the status control.
+   Finish the action, resolve it, and see the **Status History**.
+5. Sign in as Jennifer again: the same ticket shows "Work done by IT" read only, with no button.
+6. Sign in as `priya.nair@toktickit.dev`: the dashboard shows zeros and empty lists.
+7. Sign in as `john.smith@toktickit.dev`: the dashboard adds the user counts, and Users still works
+   as in Lab 3.
 
 ## Environment variables
 
@@ -130,78 +120,62 @@ npx playwright test           # starts/reuses both dev servers automatically
 |------|----------|---------|
 | `server/.env` | `DATABASE_URL` | PostgreSQL connection string |
 | `server/.env` | `PORT` | API port (default 3000) |
+| shell | `CLIENT_ORIGIN` | Client origin allowed by CORS (default `http://localhost:5173`) |
 | `client/.env` | `VITE_API_URL` | Base URL of the API |
+| shell | `E2E_CLIENT_URL` | Client URL used by Playwright (default `http://localhost:5173`) |
 
 Real `.env` files are git-ignored. Only `.env.example` is committed.
 
-## REST endpoints
+## REST API
 
-Full contract, request/response shapes, validation, and status codes: `docs/lab-02/api-spec.md`.
+Contracts: `docs/lab-02/api-spec.md`, `docs/lab-03/api-spec.md` and `docs/lab-04/api-spec.md`.
+Identity comes from the `toktickit.sid` session cookie (Lab 3).
 
-| Method | Path | Purpose |
-|--------|------|---------|
-| GET | `/api/health` | Liveness check |
-| GET | `/api/categories` | Active Categories |
-| GET | `/api/related-systems` | Active Related Systems |
-| GET | `/api/requesters` | Active Development Requesters (selector) |
-| POST | `/api/tickets` | Create a Ticket for the current Requester |
-| GET | `/api/tickets` | List the current Requester's Tickets (search/filter/sort/page) |
-| GET | `/api/tickets/:id` | One owned Ticket, with its Attachments |
-| POST | `/api/tickets/:id/attachments` | Upload one Attachment |
-| GET | `/api/attachments/:id` | Attachment metadata |
-| GET | `/api/attachments/:id/download` | Download one active Attachment |
-| DELETE | `/api/attachments/:id` | Soft-remove one Attachment |
+| Group | Paths |
+|---|---|
+| Health and reference data | `GET /api/health`, `/api/categories`, `/api/related-systems` |
+| Authentication | `/api/auth/login`, `/logout`, `/me`, `/change-password` |
+| Requester tickets | `/api/tickets` (create, list with filters including `statusGroup=active`), `/api/tickets/:id`, attachments, comments, requester-resolved |
+| Attachments | `/api/attachments/:id`, `/download`, soft removal |
+| IT Staff | `/api/staff/tickets` (queue), `/api/staff/tickets/:id` (detail with actions and history), owner, it-priority, status (with `version`), notes, `/api/staff/assignable-users` |
+| Actions Taken (Lab 4) | `POST /api/staff/tickets/:id/actions`, `PATCH /api/staff/tickets/:id/actions/:actionId` (`DELETE` answers 405) |
+| Dashboards (Lab 4) | `GET /api/dashboard/requester`, `GET /api/dashboard/staff` |
+| Administrator | `/api/admin/users` |
 
-All `/api/tickets*` and `/api/attachments*` routes require an `X-Dev-Requester-Id` header - the
-Lab 2 testing mechanism described in `docs/lab-02/specification.md` (not authentication).
+## Repository structure
 
-## Usage
-
-1. Open http://localhost:5173 - you land on **Select Development Requester**.
-2. Choose an active Requester and continue. The app shell then shows your name and a **Change
-   Requester** action.
-3. **Create Ticket**: pick a Category, Related System, and Requested Priority, write a Summary
-   and Description, optionally attach up to five JPG/PNG/WEBP/PDF files (5 MB max each), and
-   submit. The backend-issued Ticket Number is shown on success.
-4. **My Tickets**: search, filter, sort, and page through your own Tickets; open one to see its
-   detail.
-5. **Ticket Detail**: read-only Ticket information plus the Attachments panel - add, download, or
-   soft-remove (with a reason) your own Attachments.
-
-## Tests
-
-```bash
-cd server && npm test         # Vitest + Supertest - unit + API (docs/lab-02/tests.md UNIT-*/API-*)
-cd client && npm test         # Vitest + Testing Library - UI components (UI-*)
-npx playwright test           # from the repo root - E2E + responsive/visual (E2E-*/VIS-*)
+```
+toktickit/
+├── client/                React + TypeScript + Vite frontend
+│   ├── src/               api.ts, context/, components/, pages/, utils/, styles/zen-theme.css
+│   └── tests/             lab-02/, lab-03/, lab-04/ (Vitest + Testing Library)
+├── server/                Express + TypeScript backend
+│   ├── prisma/            schema.prisma, migrations/, rollback/, seed.ts
+│   ├── scripts/           lab-02-evidence.ts, lab-04-migration-check.ts
+│   ├── src/               routes/, middleware/, services/
+│   └── tests/             lab-01/ to lab-04/, shared/ (Vitest + Supertest)
+├── e2e/                   lab-02/, lab-03/, lab-04/ (Playwright)
+├── artifacts/             lab-02/, lab-03/, lab-04/ screenshots and migration evidence
+├── docs/                  lab-01/ to lab-04/: specification, api-spec, ui-spec, tests,
+│                          reviewer, ai-use
+├── playwright.config.ts
+└── package.json           root: Playwright only
 ```
 
-Backend API tests read/write the real PostgreSQL dev database (migrated + seeded, see above) and
-clean up everything they create. Playwright drives the real running app end to end, so it also
-creates real Tickets in the dev database - see `docs/lab-02/tests.md` section 7 for that
-tradeoff. The full test plan, acceptance-criterion traceability, and final pass counts are in
-`docs/lab-02/tests.md`.
+## Git workflow
 
-## Lab 2 git workflow
+`main` is the stable branch. Each lab has a staging branch (`lab4-staging` for Lab 4). Every Issue
+is done on its own feature branch, merged into the staging branch with a Pull Request ("Create a
+merge commit", in order, because each branch starts from the previous one), and then one release
+Pull Request merges the staging branch into `main`.
 
-`main` is the stable branch, `lab2-staging` is the Lab 2 integration branch (branched from
-`main` once Lab 1 was complete). Each Issue is implemented on its own feature branch and enters
-`lab2-staging` through a peer-reviewed Pull Request, merged **in the order below** using
-"Create a merge commit" (not squash/rebase - later branches were started from the tip of the
-previous one, so a non-linear merge keeps each PR's diff small and accurate). Once all seven are
-in `lab2-staging` and integration-tested, one release Pull Request merges `lab2-staging` into
-`main`.
+| Order | Lab 4 feature branch | Scope |
+|-------|----------------------|-------|
+| 1 | `feature/lab4-01-spec-and-test-plan` | specification, api-spec, ui-spec, test plan |
+| 2 | `feature/lab4-02-actions-taken-foundation` | migration, model, seed, Actions Taken API and tests |
+| 3 | `feature/lab4-03-actions-taken-ui` | Actions Taken card, create and edit modes, tests |
+| 4 | `feature/lab4-04-ticket-workflow` | resolution gate, status history, version checks, tests |
+| 5 | `feature/lab4-05-role-dashboards` | dashboard APIs and screens, drill-down, tests |
+| 6 | `feature/lab4-06-final-hardening` | regression fixes, end-to-end and visual tests, docs |
 
-| Order | Feature branch | Scope |
-|-------|-----------------|-------|
-| 1 | `feature/lab2-01-spec-and-test-plan` | `specification.md`, `api-spec.md`, `ui-spec.md`, `tests.md`, `ai-use.md`, `reviewer.md` |
-| 2 | `feature/lab2-02-backend-foundation` | Prisma schema/migration/seed, full REST API, backend tests |
-| 3 | `feature/lab2-03-requester-context-and-shell` | `RequesterContext`, app shell/nav, Requester Selection screen, Zen Green theme |
-| 4 | `feature/lab2-04-create-ticket-ui` | Create Ticket screen, attachment picker, its tests |
-| 5 | `feature/lab2-05-my-tickets-ui` | My Tickets screen, pagination, its tests |
-| 6 | `feature/lab2-06-ticket-detail-attachments-ui` | Ticket Detail, Attachment lifecycle UI, its tests |
-| 7 | `feature/lab2-07-e2e-and-visual-tests` | Playwright E2E + responsive/visual suite, committed screenshots |
-| 8 | `feature/lab2-08-docs-and-release-prep` | Final docs, README, test-result traceability, release cleanup |
-
-See `docs/lab-02/reviewer.md` for the PR links, review comments, and responses once each PR is
-opened and reviewed.
+Review records: `docs/lab-0X/reviewer.md`.

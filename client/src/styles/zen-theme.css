@@ -593,6 +593,15 @@ a {
   }
 }
 
+/* Lab 4 fix: side by side, the second card (Internal Notes on the staff
+   Ticket Detail) still got the stacked-card top margin and sat lower than the
+   first one. Only stacked cards need that margin. */
+@media (min-width: 768px) {
+  .zen-form-grid > .zen-card + .zen-card {
+    margin-top: 0;
+  }
+}
+
 .zen-form-actions {
   display: flex;
   gap: var(--zen-space-3);
