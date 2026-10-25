@@ -1,4 +1,5 @@
-import type { RequestedPriority, TicketStatus } from "../api";
+import type { ActionStatus, RequestedPriority, TicketStatus } from "../api";
+import { ACTION_STATUS_LABEL } from "../utils/actionRules";
 
 type BadgeVariant =
   | "priority-low"
@@ -6,7 +7,11 @@ type BadgeVariant =
   | "priority-high"
   | "status"
   | "active"
-  | "removed";
+  | "removed"
+  | "action-planned"
+  | "action-in-progress"
+  | "action-completed"
+  | "action-cancelled";
 
 export function Badge({ variant, children }: { variant: BadgeVariant; children: string }) {
   return <span className={`zen-badge zen-badge-${variant}`}>{children}</span>;
@@ -42,4 +47,16 @@ export function StatusBadge({ status }: { status: TicketStatus }) {
 
 export function AttachmentStateBadge({ removed }: { removed: boolean }) {
   return <Badge variant={removed ? "removed" : "active"}>{removed ? "Removed" : "Active"}</Badge>;
+}
+
+const ACTION_VARIANT: Record<ActionStatus, BadgeVariant> = {
+  PLANNED: "action-planned",
+  IN_PROGRESS: "action-in-progress",
+  COMPLETED: "action-completed",
+  CANCELLED: "action-cancelled",
+};
+
+// Lab 4 - the text is always there, the colour only helps (ui-spec.md section 9).
+export function ActionStatusBadge({ status }: { status: ActionStatus }) {
+  return <Badge variant={ACTION_VARIANT[status]}>{ACTION_STATUS_LABEL[status]}</Badge>;
 }

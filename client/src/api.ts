@@ -17,6 +17,9 @@ export type TicketStatus =
   | "REOPENED"
   | "CANCELLED";
 
+// Lab 4 - BR-08.
+export type ActionStatus = "PLANNED" | "IN_PROGRESS" | "COMPLETED" | "CANCELLED";
+
 export interface AuthUser {
   id: number;
   name: string;
@@ -54,6 +57,26 @@ export interface TicketMessage {
   authorRole: Role;
   body: string;
   createdAt: string;
+}
+
+/** Lab 4 - docs/lab-04/api-spec.md section 2. */
+export interface ActionTaken {
+  id: number;
+  ticketId: number;
+  actionAt: string;
+  description: string;
+  result: string | null;
+  status: ActionStatus;
+  performedById: number;
+  performedByName: string;
+  createdById: number;
+  createdByName: string;
+  followUpRequired: boolean;
+  followUpNote: string | null;
+  attachmentNotes: string | null;
+  version: number;
+  createdAt: string;
+  updatedAt: string;
 }
 
 export interface TicketListItem {
@@ -96,10 +119,13 @@ export interface TicketDetail {
   itPriority: RequestedPriority;
   currentStatus: TicketStatus;
   requesterResolvedAt: string | null;
+  resolvedAt: string | null;
+  version: number;
   createdAt: string;
   updatedAt: string;
   attachments: AttachmentMeta[];
   publicComments: TicketMessage[];
+  actionsTaken: ActionTaken[];
 }
 
 export interface CreateTicketInput {
@@ -402,6 +428,40 @@ export function postInternalNote(ticketId: number, body: string): Promise<Ticket
   return request<TicketMessage>(`/api/staff/tickets/${ticketId}/notes`, {
     method: "POST",
     body: JSON.stringify({ body }),
+  });
+}
+
+// --- Lab 4 Actions Taken (api-spec.md section 3) ---
+
+export interface ActionInput {
+  actionAt: string;
+  description: string;
+  result: string | null;
+  status: ActionStatus;
+  performedById: number;
+  followUpRequired: boolean;
+  followUpNote: string | null;
+  attachmentNotes: string | null;
+}
+
+export function createAction(
+  ticketId: number,
+  input: ActionInput & { clientRequestId: string }
+): Promise<ActionTaken> {
+  return request<ActionTaken>(`/api/staff/tickets/${ticketId}/actions`, {
+    method: "POST",
+    body: JSON.stringify(input),
+  });
+}
+
+export function updateAction(
+  ticketId: number,
+  actionId: number,
+  input: ActionInput & { version: number }
+): Promise<ActionTaken> {
+  return request<ActionTaken>(`/api/staff/tickets/${ticketId}/actions/${actionId}`, {
+    method: "PATCH",
+    body: JSON.stringify(input),
   });
 }
 
