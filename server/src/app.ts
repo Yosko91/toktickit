@@ -9,6 +9,7 @@ import { ticketsRouter } from "./routes/tickets.js";
 import { staffTicketsRouter } from "./routes/staffTickets.js";
 import { adminUsersRouter } from "./routes/adminUsers.js";
 import { attachmentsRouter } from "./routes/attachments.js";
+import { dashboardRouter } from "./routes/dashboard.js";
 import { UnsupportedAttachmentTypeError } from "./services/attachmentStorage.js";
 
 // The client origin must be named explicitly rather than reflected, because a
@@ -38,6 +39,7 @@ export function createApp() {
   app.use("/api/staff", staffTicketsRouter);
   app.use("/api/admin/users", adminUsersRouter);
   app.use("/api/attachments", attachmentsRouter);
+  app.use("/api/dashboard", dashboardRouter);
 
   // BR-22/BR-23 (Lab 2): multer surfaces attachment type/size failures as errors
   // rather than calling next() with a handled response, so they are mapped

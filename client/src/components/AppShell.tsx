@@ -2,6 +2,7 @@ import { useState } from "react";
 import { NavLink, Outlet, useNavigate } from "react-router-dom";
 import type { Role } from "../api";
 import { useAuth } from "../context/AuthContext";
+import { homeFor } from "./RequireAuth";
 
 // ui-spec.md section 1. The Lab 2 Development Requester display and the Change
 // Requester action are gone (BR-42); the header now shows the authenticated
@@ -27,15 +28,21 @@ interface NavItem {
  */
 function navItemsFor(role: Role): NavItem[] {
   switch (role) {
+    // Lab 4 - FR-13: Dashboard first for every role.
     case "REQUESTER":
       return [
+        { to: "/dashboard", label: "Dashboard", icon: "📊" },
         { to: "/tickets", label: "My Tickets", icon: "📄", end: true },
         { to: "/tickets/new", label: "Create Ticket", icon: "➕" },
       ];
     case "IT_STAFF":
-      return [{ to: "/queue", label: "Ticket Queue", icon: "🗂️" }];
+      return [
+        { to: "/dashboard", label: "Dashboard", icon: "📊" },
+        { to: "/queue", label: "Ticket Queue", icon: "🗂️" },
+      ];
     case "ADMINISTRATOR":
       return [
+        { to: "/dashboard", label: "Dashboard", icon: "📊" },
         { to: "/queue", label: "Ticket Queue", icon: "🗂️" },
         { to: "/admin/users", label: "Users", icon: "👥" },
       ];
@@ -60,7 +67,8 @@ export function AppShell() {
     <div className="zen-shell">
       <header className="zen-header">
         <div className="zen-header-bar">
-          <NavLink to={items[0]?.to ?? "/"} className="zen-brand">
+          {/* The landing page of each role is unchanged from Lab 3. */}
+          <NavLink to={user ? homeFor(user.role) : "/"} className="zen-brand">
             <span className="zen-brand-icon" aria-hidden="true">
               🕐
             </span>

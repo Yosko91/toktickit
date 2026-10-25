@@ -1,11 +1,12 @@
 import { useEffect, useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import { ApiError, getCategories, listTickets } from "../api";
 import type { Category, RequestedPriority, TicketListItem, TicketListResponse, TicketStatus } from "../api";
 import { LoadingPanel, StatePanel } from "../components/StatePanel";
 import { PriorityBadge, StatusBadge } from "../components/Badge";
 import { Pagination } from "../components/Pagination";
+import { ALL_STATUSES, statusLabel } from "../utils/ticketWorkflow";
 
 type SortField = "createdAt" | "ticketNumber" | "summary" | "requestedPriority";
 const PAGE_SIZE = 10;
@@ -25,6 +26,8 @@ function formatDate(iso: string): string {
 export function MyTickets() {
   const { user } = useAuth();
   const navigate = useNavigate();
+  // Lab 4 - FR-12: the dashboard cards open this list with a status filter.
+  const [params] = useSearchParams();
 
   const [categories, setCategories] = useState<Category[]>([]);
   useEffect(() => {
@@ -42,7 +45,11 @@ export function MyTickets() {
 
   const [categoryId, setCategoryId] = useState("");
   const [priority, setPriority] = useState<RequestedPriority | "">("");
-  const [status, setStatus] = useState<TicketStatus | "">("");
+  const [status, setStatus] = useState<TicketStatus | "active" | "">(
+    () =>
+      (params.get("currentStatus") as TicketStatus | null) ??
+      (params.get("statusGroup") === "active" ? "active" : "")
+  );
   const [sortBy, setSortBy] = useState<SortField>("createdAt");
   const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
   const [page, setPage] = useState(1);
@@ -74,7 +81,8 @@ export function MyTickets() {
       search: debouncedSearch || undefined,
       categoryId: categoryId ? Number(categoryId) : undefined,
       requestedPriority: priority || undefined,
-      currentStatus: status || undefined,
+      currentStatus: status && status !== "active" ? status : undefined,
+      statusGroup: status === "active" ? "active" : undefined,
       sortBy,
       sortDir,
       page,
@@ -192,12 +200,18 @@ export function MyTickets() {
           aria-label="Filter by current status"
           value={status}
           onChange={(e) => {
-            setStatus(e.target.value as TicketStatus | "");
+            setStatus(e.target.value as TicketStatus | "active" | "");
             setPage(1);
           }}
         >
           <option value="">All Statuses</option>
-          <option value="NEW">New</option>
+          {/* Lab 4: this list only had New since Lab 2. */}
+          <option value="active">Active (not finished)</option>
+          {ALL_STATUSES.map((s) => (
+            <option key={s} value={s}>
+              {statusLabel(s)}
+            </option>
+          ))}
         </select>
       </div>
 

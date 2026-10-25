@@ -17,7 +17,7 @@ describe("Lab 4 migration and backfill", () => {
     staffId = (await createTestStaff()).id;
     const rows = await getPrisma().$queryRaw<{ finished_at: Date }[]>`
       SELECT finished_at FROM _prisma_migrations WHERE migration_name LIKE '%lab4_actions_taken' LIMIT 1`;
-    migratedAt = rows[0].finished_at;
+    migratedAt = rows[0]!.finished_at;
   });
 
   afterAll(async () => {
