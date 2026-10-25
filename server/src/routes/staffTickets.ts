@@ -15,12 +15,16 @@ import {
   shapeMessage,
   shapeStaffTicketDetail,
 } from "../services/shapes.js";
+import { actionsTakenRouter } from "./actionsTaken.js";
 
 export const staffTicketsRouter = Router();
 
 // BR-16: IT Staff and Administrators hold the same Ticket operation rights.
 // A Requester reaching any of this gets 403 (BR-12, AC-17).
 staffTicketsRouter.use(requireAuth, requirePasswordChanged, requireStaff);
+
+// Lab 4 - Actions Taken sit behind the same three checks (BR-03).
+staffTicketsRouter.use("/tickets/:id/actions", actionsTakenRouter);
 
 const PRIORITIES: RequestedPriority[] = ["LOW", "MEDIUM", "HIGH"];
 
