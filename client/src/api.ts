@@ -79,6 +79,16 @@ export interface ActionTaken {
   updatedAt: string;
 }
 
+/** Lab 4 - one row of the append-only status history (BR-20). */
+export interface StatusChange {
+  id: number;
+  fromStatus: TicketStatus;
+  toStatus: TicketStatus;
+  changedById: number;
+  changedByName: string;
+  changedAt: string;
+}
+
 export interface TicketListItem {
   id: number;
   ticketNumber: string;
@@ -126,6 +136,7 @@ export interface TicketDetail {
   attachments: AttachmentMeta[];
   publicComments: TicketMessage[];
   actionsTaken: ActionTaken[];
+  statusHistory: StatusChange[];
 }
 
 export interface CreateTicketInput {
@@ -394,33 +405,39 @@ export function getAssignableUsers(): Promise<AssignableUser[]> {
   return request<AssignableUser[]>("/api/staff/assignable-users");
 }
 
+// Lab 4 - BR-22: the version is the one of the ticket on screen. The API
+// answers 409 STALE_UPDATE when somebody changed the ticket since.
+
 export function setTicketOwner(
   id: number,
-  ownerId: number | null
-): Promise<{ id: number; ownerId: number | null; ownerName: string | null }> {
+  ownerId: number | null,
+  version?: number
+): Promise<{ id: number; ownerId: number | null; ownerName: string | null; version: number }> {
   return request(`/api/staff/tickets/${id}/owner`, {
     method: "PATCH",
-    body: JSON.stringify({ ownerId }),
+    body: JSON.stringify({ ownerId, version }),
   });
 }
 
 export function setItPriority(
   id: number,
-  itPriority: RequestedPriority
-): Promise<{ id: number; itPriority: RequestedPriority; requestedPriority: RequestedPriority }> {
+  itPriority: RequestedPriority,
+  version?: number
+): Promise<{ id: number; itPriority: RequestedPriority; requestedPriority: RequestedPriority; version: number }> {
   return request(`/api/staff/tickets/${id}/it-priority`, {
     method: "PATCH",
-    body: JSON.stringify({ itPriority }),
+    body: JSON.stringify({ itPriority, version }),
   });
 }
 
 export function setTicketStatus(
   id: number,
-  currentStatus: TicketStatus
-): Promise<{ id: number; currentStatus: TicketStatus }> {
+  currentStatus: TicketStatus,
+  version?: number
+): Promise<{ id: number; currentStatus: TicketStatus; version: number; resolvedAt: string | null }> {
   return request(`/api/staff/tickets/${id}/status`, {
     method: "PATCH",
-    body: JSON.stringify({ currentStatus }),
+    body: JSON.stringify({ currentStatus, version }),
   });
 }
 

@@ -18,6 +18,7 @@ import { AttachmentSection } from "../components/AttachmentSection";
 import { RemoveAttachmentDialog } from "../components/RemoveAttachmentDialog";
 import { CommentPanel } from "../components/CommentPanel";
 import { ActionsTakenSection } from "../components/ActionsTakenSection";
+import { StatusHistory } from "../components/StatusHistory";
 import { validateAttachmentFile } from "../utils/attachmentRules";
 
 function formatDate(iso: string): string {
@@ -244,6 +245,8 @@ export function TicketDetail() {
         actions={ticket.actionsTaken ?? []}
         mode="readonly"
       />
+
+      <StatusHistory changes={ticket.statusHistory ?? []} />
 
       <AttachmentSection
         attachments={ticket.attachments}

@@ -25,6 +25,7 @@ import { PriorityBadge, StatusBadge } from "../components/Badge";
 import { CommentPanel } from "../components/CommentPanel";
 import { AttachmentStateBadge } from "../components/Badge";
 import { ActionsTakenSection } from "../components/ActionsTakenSection";
+import { StatusHistory } from "../components/StatusHistory";
 import { permittedNextStatuses, statusLabel } from "../utils/ticketWorkflow";
 import { formatFileSize } from "../utils/attachmentRules";
 
@@ -60,6 +61,8 @@ export function StaffTicketDetail() {
   const [ownerError, setOwnerError] = useState<string | null>(null);
   const [priorityError, setPriorityError] = useState<string | null>(null);
   const [statusError, setStatusError] = useState<string | null>(null);
+  // Lab 4 - BR-22: which control got a "changed by someone else" answer.
+  const [staleField, setStaleField] = useState<string | null>(null);
 
   // quiet keeps the page on screen while it refreshes, so a section that just
   // saved something (Actions Taken) is not unmounted by the loading panel.
@@ -93,12 +96,14 @@ export function StaffTicketDetail() {
   async function runSave(field: string, action: () => Promise<unknown>, onError: (m: string) => void) {
     setSavingField(field);
     setSavedField(null);
+    setStaleField(null);
     onError("");
     try {
       await action();
       setSavedField(field);
       load();
     } catch (err) {
+      if (err instanceof ApiError && err.code === "STALE_UPDATE") setStaleField(field);
       onError(err instanceof ApiError ? err.message : "Unable to save the change");
     } finally {
       setSavingField(null);
@@ -108,19 +113,19 @@ export function StaffTicketDetail() {
   function handleOwnerChange(value: string) {
     if (!ticket) return;
     const ownerId = value === "" ? null : Number(value);
-    void runSave("owner", () => setTicketOwner(ticket.id, ownerId), setOwnerError);
+    void runSave("owner", () => setTicketOwner(ticket.id, ownerId, ticket.version), setOwnerError);
   }
 
   function handleClaim() {
     if (!ticket || !user) return;
-    void runSave("owner", () => setTicketOwner(ticket.id, user.id), setOwnerError);
+    void runSave("owner", () => setTicketOwner(ticket.id, user.id, ticket.version), setOwnerError);
   }
 
   function handlePriorityChange(value: string) {
     if (!ticket) return;
     void runSave(
       "itPriority",
-      () => setItPriority(ticket.id, value as RequestedPriority),
+      () => setItPriority(ticket.id, value as RequestedPriority, ticket.version),
       setPriorityError
     );
   }
@@ -129,7 +134,7 @@ export function StaffTicketDetail() {
     if (!ticket || value === "") return;
     void runSave(
       "status",
-      () => setTicketStatus(ticket.id, value as TicketStatus),
+      () => setTicketStatus(ticket.id, value as TicketStatus, ticket.version),
       setStatusError
     );
   }
@@ -177,6 +182,23 @@ export function StaffTicketDetail() {
   if (!ticket) return null;
 
   const nextStatuses = permittedNextStatuses(ticket.currentStatus);
+
+  const reloadButton = (
+    <button
+      type="button"
+      className="zen-btn zen-btn-secondary"
+      style={{ alignSelf: "flex-start" }}
+      onClick={() => {
+        setStaleField(null);
+        setOwnerError(null);
+        setPriorityError(null);
+        setStatusError(null);
+        load(true);
+      }}
+    >
+      Reload the ticket
+    </button>
+  );
 
   return (
     <div>
@@ -245,6 +267,7 @@ export function StaffTicketDetail() {
               )}
             </div>
             {ownerError && <div className="zen-field-error">{ownerError}</div>}
+            {staleField === "owner" && reloadButton}
             {savedField === "owner" && !ownerError && (
               <div className="zen-field-hint">Owner saved</div>
             )}
@@ -266,6 +289,7 @@ export function StaffTicketDetail() {
               <option value="LOW">Low</option>
             </select>
             {priorityError && <div className="zen-field-error">{priorityError}</div>}
+            {staleField === "itPriority" && reloadButton}
             {savedField === "itPriority" && !priorityError && (
               <div className="zen-field-hint">IT priority saved</div>
             )}
@@ -297,6 +321,7 @@ export function StaffTicketDetail() {
               </div>
             )}
             {statusError && <div className="zen-field-error">{statusError}</div>}
+            {staleField === "status" && reloadButton}
             {savedField === "status" && !statusError && (
               <div className="zen-field-hint">Status saved</div>
             )}
@@ -324,6 +349,8 @@ export function StaffTicketDetail() {
         staffUsers={owners}
         onChanged={() => load(true)}
       />
+
+      <StatusHistory changes={ticket.statusHistory ?? []} />
 
       <section className="zen-card">
         <h2 style={{ fontSize: 16, marginTop: 0 }}>Attachments ({ticket.attachments.length})</h2>

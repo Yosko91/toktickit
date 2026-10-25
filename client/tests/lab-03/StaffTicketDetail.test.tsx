@@ -62,7 +62,8 @@ describe("StaffTicketDetail", () => {
 
     await user.click(await screen.findByRole("button", { name: /claim/i }));
 
-    expect(mocked.setTicketOwner).toHaveBeenCalledWith(1, STAFF.id);
+    // Lab 4 (BR-22): the version of the ticket on screen is sent too.
+    expect(mocked.setTicketOwner).toHaveBeenCalledWith(1, STAFF.id, 1);
     // Reloaded in place, without a full page navigation.
     expect(await screen.findByDisplayValue("Michael Brown")).toBeInTheDocument();
   });
@@ -107,7 +108,8 @@ describe("StaffTicketDetail", () => {
 
     await user.selectOptions(await screen.findByLabelText(/current status/i), "RESOLVED");
 
-    expect(mocked.setTicketStatus).toHaveBeenCalledWith(1, "RESOLVED");
+    // Lab 4 (BR-22): the version of the ticket on screen is sent too.
+    expect(mocked.setTicketStatus).toHaveBeenCalledWith(1, "RESOLVED", 1);
     expect(await screen.findByText(/must have an owner/i)).toBeInTheDocument();
   });
 

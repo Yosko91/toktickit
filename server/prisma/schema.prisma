@@ -83,6 +83,7 @@ model User {
   internalNotes      InternalNote[]
   actionsPerformed   ActionTaken[]   @relation("ActionPerformer")
   actionsCreated     ActionTaken[]   @relation("ActionCreator")
+  statusChanges      TicketStatusChange[]
 
   @@index([role])
 }
@@ -130,6 +131,7 @@ model Ticket {
   publicComments      PublicComment[]
   internalNotes       InternalNote[]
   actionsTaken        ActionTaken[]
+  statusHistory       TicketStatusChange[]
 
   @@index([requesterId])
   @@index([categoryId])
@@ -211,4 +213,19 @@ model ActionTaken {
 
   @@index([ticketId, actionAt])
   @@index([performedById, status])
+}
+
+// Lab 4 - BR-20: one row per status change, append-only. There is no
+// updatedAt because a row is never changed, and no endpoint edits or deletes it.
+model TicketStatusChange {
+  id          Int          @id @default(autoincrement())
+  ticketId    Int
+  ticket      Ticket       @relation(fields: [ticketId], references: [id])
+  fromStatus  TicketStatus
+  toStatus    TicketStatus
+  changedById Int
+  changedBy   User         @relation(fields: [changedById], references: [id])
+  changedAt   DateTime     @default(now())
+
+  @@index([ticketId, changedAt])
 }

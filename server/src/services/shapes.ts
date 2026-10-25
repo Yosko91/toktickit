@@ -72,6 +72,27 @@ export const ACTION_INCLUDE = {
   createdBy: { select: { name: true } },
 } satisfies Prisma.ActionTakenInclude;
 
+type StatusChangeWithName = {
+  id: number;
+  fromStatus: string;
+  toStatus: string;
+  changedById: number;
+  changedBy: { name: string };
+  changedAt: Date;
+};
+
+// Lab 4 - BR-20, one history row.
+export function shapeStatusChange(change: StatusChangeWithName) {
+  return {
+    id: change.id,
+    fromStatus: change.fromStatus,
+    toStatus: change.toStatus,
+    changedById: change.changedById,
+    changedByName: change.changedBy.name,
+    changedAt: change.changedAt,
+  };
+}
+
 type RequesterTicketPayload = Prisma.TicketGetPayload<{
   include: {
     requester: { select: { name: true } };
@@ -81,6 +102,7 @@ type RequesterTicketPayload = Prisma.TicketGetPayload<{
     attachments: true;
     publicComments: { include: { author: { select: { name: true; role: true } } } };
     actionsTaken: { include: typeof ACTION_INCLUDE };
+    statusHistory: { include: { changedBy: { select: { name: true } } } };
   };
 }>;
 
@@ -115,6 +137,7 @@ export function shapeTicketDetail(ticket: RequesterTicketPayload) {
     publicComments: ticket.publicComments.map(shapeMessage),
     // FR-05: the Requester sees every Action Taken of their own ticket.
     actionsTaken: ticket.actionsTaken.map(shapeAction),
+    statusHistory: ticket.statusHistory.map(shapeStatusChange),
   };
 }
 
@@ -145,5 +168,10 @@ export const REQUESTER_TICKET_INCLUDE = {
   actionsTaken: {
     orderBy: [{ actionAt: "asc" }, { id: "asc" }],
     include: ACTION_INCLUDE,
+  },
+  // BR-20: oldest first, the id keeps two changes in the same millisecond in order.
+  statusHistory: {
+    orderBy: [{ changedAt: "asc" }, { id: "asc" }],
+    include: { changedBy: { select: { name: true } } },
   },
 } satisfies Prisma.TicketInclude;

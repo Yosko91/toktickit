@@ -8,7 +8,7 @@ import pg from "pg";
 //
 //   npx tsx scripts/lab-04-migration-check.ts snapshot <file>     save counts and checksums
 //   npx tsx scripts/lab-04-migration-check.ts compare <a> <b>     compare two snapshots
-//   npx tsx scripts/lab-04-migration-check.ts rollback <before>   test the rollback on a copy
+//   npx tsx scripts/lab-04-migration-check.ts rollback            test the rollback on a copy
 //
 // The checksums only use columns that existed before Lab 4, so a snapshot taken
 // before the migration can be compared with one taken after it.
@@ -56,7 +56,7 @@ function withDatabase(url: string, name: string): string {
   return parsed.toString();
 }
 
-async function rollbackTest(beforeFile: string) {
+async function rollbackTest() {
   const url = process.env.DATABASE_URL!;
   const source = new URL(url).pathname.slice(1);
   const copy = `${source}_rollback_check`;
@@ -69,6 +69,9 @@ async function rollbackTest(beforeFile: string) {
     // session on the source, so the dev server must be stopped first.
     await admin.query(`CREATE DATABASE "${copy}" TEMPLATE "${source}"`);
     console.log(`Copied ${source} to ${copy}`);
+
+    // The Lab 3 data of the copy just before the rollback is the reference.
+    const before = await snapshot(withDatabase(url, copy));
 
     const here = dirname(fileURLToPath(import.meta.url));
     const downSql = readFileSync(join(here, "..", "prisma", "rollback", "lab4_down.sql"), "utf8");
@@ -87,9 +90,8 @@ async function rollbackTest(beforeFile: string) {
       await target.end();
     }
 
-    const before = JSON.parse(readFileSync(beforeFile, "utf8")) as Snapshot;
     const after = await snapshot(withDatabase(url, copy));
-    console.log("Lab 3 data before Lab 4 vs after rollback:");
+    console.log("Lab 3 data before vs after the rollback:");
     if (!compare(before, after)) throw new Error("data differs after rollback");
     console.log("Rollback OK");
   } finally {
@@ -111,10 +113,10 @@ async function main() {
     const same = compare(JSON.parse(readFileSync(a, "utf8")), JSON.parse(readFileSync(b, "utf8")));
     console.log(same ? "No data lost or changed" : "Data changed");
     process.exitCode = same ? 0 : 1;
-  } else if (command === "rollback" && a) {
-    await rollbackTest(a);
+  } else if (command === "rollback") {
+    await rollbackTest();
   } else {
-    console.log("usage: snapshot <file> | compare <a> <b> | rollback <before-file>");
+    console.log("usage: snapshot <file> | compare <a> <b> | rollback");
     process.exitCode = 1;
   }
 }

@@ -1,5 +1,6 @@
 import type { Prisma, RequestedPriority, TicketStatus } from "@prisma/client";
 import { getPrisma } from "../prisma.js";
+import { ACTIVE_STATUSES } from "./ticketWorkflow.js";
 
 const SORTABLE_FIELDS = ["createdAt", "ticketNumber", "summary", "requestedPriority"] as const;
 type SortableField = (typeof SORTABLE_FIELDS)[number];
@@ -11,6 +12,10 @@ const STATUSES: TicketStatus[] = [
   "OPEN",
   "IN_PROGRESS",
   "PENDING",
+  // Lab 4 fix: the two Lab 3 statuses were never added to this Lab 2 list, so
+  // a Requester could not filter on them (found by the dashboard drill-down).
+  "WAITING_FOR_REQUESTER",
+  "REOPENED",
   "RESOLVED",
   "CLOSED",
   "CANCELLED",
@@ -31,6 +36,7 @@ export interface TicketListQuery {
   categoryId?: string;
   requestedPriority?: string;
   currentStatus?: string;
+  statusGroup?: string;
   sortBy?: string;
   sortDir?: string;
   page?: string;
@@ -113,6 +119,8 @@ export async function listTicketsForRequester(
     where.currentStatus = value;
   }
 
+  applyStatusGroup(where, query.statusGroup);
+
   const prisma = getPrisma();
   // Secondary sort by id keeps ordering stable when the primary key ties.
   const orderBy: Prisma.TicketOrderByWithRelationInput[] = [
@@ -149,4 +157,16 @@ export async function listTicketsForRequester(
       totalPages: Math.ceil(totalItems / pageSize),
     },
   };
+}
+
+/**
+ * Lab 4 - BR-25, statusGroup=active. Combined with a currentStatus filter it
+ * narrows further (AND), it never widens.
+ */
+export function applyStatusGroup(where: Prisma.TicketWhereInput, statusGroup: string | undefined) {
+  if (statusGroup === undefined) return;
+  if (statusGroup !== "active") {
+    throw new QueryValidationError("statusGroup", "must be active");
+  }
+  where.AND = [{ currentStatus: { in: ACTIVE_STATUSES } }];
 }

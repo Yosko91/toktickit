@@ -7,6 +7,7 @@ import {
   parseActionInput,
   type ActionFields,
 } from "../../src/services/actionRules.js";
+import { resolutionBlocker } from "../../src/services/ticketWorkflow.js";
 
 const CREATED = new Date("2026-10-20T08:00:00.000Z");
 const NOW = new Date("2026-10-25T08:00:00.000Z");
@@ -81,5 +82,21 @@ describe("Action Taken field rules", () => {
     expect(check(action({ actionAt: new Date("2026-10-19T08:00:00.000Z") })).actionAt).toBeDefined();
     // Five minutes of clock difference is tolerated.
     expect(check(action({ actionAt: new Date(NOW.getTime() + 2 * 60 * 1000) }))).toEqual({});
+  });
+});
+
+describe("Resolution gate (BR-18)", () => {
+  // UNIT-03
+  it("blocks without owner, without a completed action, or with an open action", () => {
+    const done = { status: "COMPLETED" as ActionStatus };
+    expect(resolutionBlocker({ ownerId: null }, [done])?.code).toBe("OWNER_REQUIRED");
+    expect(resolutionBlocker({ ownerId: 1 }, [])?.code).toBe("NO_COMPLETED_ACTION");
+    expect(resolutionBlocker({ ownerId: 1 }, [{ status: "CANCELLED" }])?.code).toBe("NO_COMPLETED_ACTION");
+    expect(resolutionBlocker({ ownerId: 1 }, [done, { status: "PLANNED" }])?.code).toBe("OPEN_ACTIONS");
+    expect(resolutionBlocker({ ownerId: 1 }, [done, { status: "IN_PROGRESS" }])?.code).toBe("OPEN_ACTIONS");
+  });
+
+  it("lets a ticket with an owner and only finished actions be resolved", () => {
+    expect(resolutionBlocker({ ownerId: 1 }, [{ status: "COMPLETED" }, { status: "CANCELLED" }])).toBeNull();
   });
 });
