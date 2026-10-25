@@ -106,6 +106,7 @@ export function makeTicketDetail(overrides: Partial<TicketDetail> = {}): TicketD
     attachments: [],
     publicComments: [],
     actionsTaken: [],
+    statusHistory: [],
     ...overrides,
   };
 }

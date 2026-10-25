@@ -1,5 +1,5 @@
 import { Router } from "express";
-import type { RequestedPriority, TicketStatus } from "@prisma/client";
+import type { Prisma, RequestedPriority, TicketStatus } from "@prisma/client";
 import { getPrisma } from "../prisma.js";
 import { requireAuth, requirePasswordChanged, requireStaff } from "../middleware/auth.js";
 import { QueryValidationError } from "../services/ticketQuery.js";
@@ -8,7 +8,7 @@ import { validateMessageBody } from "../services/messageValidation.js";
 import {
   ASSIGNABLE_STATUSES,
   isTransitionPermitted,
-  requiresOwner,
+  resolutionBlocker,
 } from "../services/ticketWorkflow.js";
 import {
   REQUESTER_TICKET_INCLUDE,
@@ -98,6 +98,44 @@ staffTicketsRouter.get("/tickets/:id", async (req, res) => {
   }
 });
 
+// Lab 4 - BR-22. A missing version means a Lab 3 caller and is accepted; a
+// version that is sent must be the current one.
+function readVersion(body: unknown): { ok: true; value?: number } | { ok: false } {
+  const value = (body as { version?: unknown } | undefined)?.version;
+  if (value === undefined) return { ok: true };
+  return Number.isInteger(value) ? { ok: true, value: value as number } : { ok: false };
+}
+
+const BAD_VERSION = {
+  error: "Validation failed",
+  details: { version: "Must be the version of the ticket you loaded" },
+};
+
+function staleTicket(currentVersion: number) {
+  return {
+    error: "This ticket was changed by someone else. Reload it and try again.",
+    code: "STALE_UPDATE",
+    currentVersion,
+  };
+}
+
+/**
+ * Writes a workflow change only if nobody saved since we read the ticket
+ * (compare and set on version, BR-22). Returns false when somebody did.
+ */
+async function updateIfCurrent(
+  tx: Prisma.TransactionClient,
+  id: number,
+  readVersion: number,
+  data: Prisma.TicketUncheckedUpdateManyInput
+): Promise<boolean> {
+  const { count } = await tx.ticket.updateMany({
+    where: { id, version: readVersion },
+    data: { ...data, version: { increment: 1 }, updatedAt: new Date() },
+  });
+  return count === 1;
+}
+
 // PATCH /api/staff/tickets/:id/owner - FR-12, BR-17, BR-18.
 // Claim, reassign and release are the same operation with a different target.
 staffTicketsRouter.patch("/tickets/:id/owner", async (req, res) => {
@@ -115,12 +153,21 @@ staffTicketsRouter.patch("/tickets/:id/owner", async (req, res) => {
     });
     return;
   }
+  const version = readVersion(req.body);
+  if (!version.ok) {
+    res.status(400).json(BAD_VERSION);
+    return;
+  }
 
   try {
     const prisma = getPrisma();
     const ticket = await prisma.ticket.findUnique({ where: { id } });
     if (!ticket) {
       res.status(404).json({ error: "Ticket not found" });
+      return;
+    }
+    if (version.value !== undefined && version.value !== ticket.version) {
+      res.status(409).json(staleTicket(ticket.version));
       return;
     }
 
@@ -139,9 +186,12 @@ staffTicketsRouter.patch("/tickets/:id/owner", async (req, res) => {
       }
     }
 
-    const updated = await prisma.ticket.update({
+    if (!(await updateIfCurrent(prisma, id, ticket.version, { ownerId }))) {
+      res.status(409).json(staleTicket(ticket.version + 1));
+      return;
+    }
+    const updated = await prisma.ticket.findUniqueOrThrow({
       where: { id },
-      data: { ownerId },
       include: { owner: { select: { name: true } } },
     });
 
@@ -149,6 +199,7 @@ staffTicketsRouter.patch("/tickets/:id/owner", async (req, res) => {
       id: updated.id,
       ownerId: updated.ownerId,
       ownerName: updated.owner?.name ?? null,
+      version: updated.version,
     });
   } catch (err) {
     console.error("[PATCH /api/staff/tickets/:id/owner]", err);
@@ -172,6 +223,11 @@ staffTicketsRouter.patch("/tickets/:id/it-priority", async (req, res) => {
     });
     return;
   }
+  const version = readVersion(req.body);
+  if (!version.ok) {
+    res.status(400).json(BAD_VERSION);
+    return;
+  }
 
   try {
     const prisma = getPrisma();
@@ -180,15 +236,24 @@ staffTicketsRouter.patch("/tickets/:id/it-priority", async (req, res) => {
       res.status(404).json({ error: "Ticket not found" });
       return;
     }
+    if (version.value !== undefined && version.value !== ticket.version) {
+      res.status(409).json(staleTicket(ticket.version));
+      return;
+    }
 
     // BR-19: requestedPriority is never written here. It is what the Requester
     // asked for and stays that way permanently.
-    const updated = await prisma.ticket.update({ where: { id }, data: { itPriority } });
+    if (!(await updateIfCurrent(prisma, id, ticket.version, { itPriority }))) {
+      res.status(409).json(staleTicket(ticket.version + 1));
+      return;
+    }
+    const updated = await prisma.ticket.findUniqueOrThrow({ where: { id } });
 
     res.status(200).json({
       id: updated.id,
       itPriority: updated.itPriority,
       requestedPriority: updated.requestedPriority,
+      version: updated.version,
     });
   } catch (err) {
     console.error("[PATCH /api/staff/tickets/:id/it-priority]", err);
@@ -196,7 +261,8 @@ staffTicketsRouter.patch("/tickets/:id/it-priority", async (req, res) => {
   }
 });
 
-// PATCH /api/staff/tickets/:id/status - FR-14, BR-22, BR-23, BR-25.
+// PATCH /api/staff/tickets/:id/status - FR-14, BR-22, BR-25 (Lab 3) and the
+// Lab 4 gate (BR-18), history (BR-20), resolvedAt (BR-21) and version (BR-22).
 staffTicketsRouter.patch("/tickets/:id/status", async (req, res) => {
   const id = parseTicketId(req.params.id);
   if (id === null) {
@@ -212,6 +278,11 @@ staffTicketsRouter.patch("/tickets/:id/status", async (req, res) => {
     });
     return;
   }
+  const version = readVersion(req.body);
+  if (!version.ok) {
+    res.status(400).json(BAD_VERSION);
+    return;
+  }
 
   try {
     const prisma = getPrisma();
@@ -220,22 +291,59 @@ staffTicketsRouter.patch("/tickets/:id/status", async (req, res) => {
       res.status(404).json({ error: "Ticket not found" });
       return;
     }
+    if (version.value !== undefined && version.value !== ticket.version) {
+      res.status(409).json(staleTicket(ticket.version));
+      return;
+    }
 
     if (!isTransitionPermitted(ticket.currentStatus, currentStatus)) {
       res.status(409).json({
         error: `A ticket cannot move from ${ticket.currentStatus} to ${currentStatus}`,
+        code: "INVALID_TRANSITION",
       });
       return;
     }
 
-    if (requiresOwner(currentStatus) && ticket.ownerId === null) {
-      res.status(409).json({ error: "A ticket must have an owner before it can be resolved" });
+    const updated = await prisma.$transaction(async (tx) => {
+      // BR-18: read the actions inside the same transaction as the write.
+      if (currentStatus === "RESOLVED") {
+        const actions = await tx.actionTaken.findMany({ where: { ticketId: id }, select: { status: true } });
+        const block = resolutionBlocker(ticket, actions);
+        if (block) return block;
+      }
+
+      const resolvedAt =
+        currentStatus === "RESOLVED" ? new Date() : currentStatus === "REOPENED" ? null : undefined;
+      if (!(await updateIfCurrent(tx, id, ticket.version, { currentStatus, resolvedAt }))) {
+        return null;
+      }
+      // BR-20: append-only. Nothing in the API updates or deletes these rows.
+      await tx.ticketStatusChange.create({
+        data: {
+          ticketId: id,
+          fromStatus: ticket.currentStatus,
+          toStatus: currentStatus,
+          changedById: req.user!.id,
+        },
+      });
+      return tx.ticket.findUniqueOrThrow({ where: { id } });
+    });
+
+    if (updated === null) {
+      res.status(409).json(staleTicket(ticket.version + 1));
+      return;
+    }
+    if ("code" in updated) {
+      res.status(409).json({ error: updated.message, code: updated.code });
       return;
     }
 
-    const updated = await prisma.ticket.update({ where: { id }, data: { currentStatus } });
-
-    res.status(200).json({ id: updated.id, currentStatus: updated.currentStatus });
+    res.status(200).json({
+      id: updated.id,
+      currentStatus: updated.currentStatus,
+      version: updated.version,
+      resolvedAt: updated.resolvedAt,
+    });
   } catch (err) {
     console.error("[PATCH /api/staff/tickets/:id/status]", err);
     res.status(500).json({ error: "Unable to change the ticket status" });

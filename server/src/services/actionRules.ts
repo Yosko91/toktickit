@@ -1,4 +1,5 @@
 import type { ActionStatus, TicketStatus } from "@prisma/client";
+import { ACTIVE_STATUSES } from "./ticketWorkflow.js";
 
 // Lab 4 - the Action Taken rules in one place (specification.md BR-05 to
 // BR-11), kept free of the database so they can be unit tested on their own.
@@ -25,11 +26,9 @@ export function isActionFinal(status: ActionStatus): boolean {
   return status === "COMPLETED" || status === "CANCELLED";
 }
 
-// BR-11: work can only be recorded while the ticket is still being worked on.
-const WORKABLE: TicketStatus[] = ["NEW", "OPEN", "IN_PROGRESS", "WAITING_FOR_REQUESTER", "REOPENED"];
-
+// BR-11: work can only be recorded while the ticket is still active (BR-25).
 export function isTicketWorkable(status: TicketStatus): boolean {
-  return WORKABLE.includes(status);
+  return ACTIVE_STATUSES.includes(status);
 }
 
 export const MAX_DESCRIPTION = 2000;
