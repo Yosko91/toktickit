@@ -31,7 +31,7 @@ Thanks! The status change is not in the main tickets route, because only IT Staf
 | # | | | |
 
 **Comment I gave:**
-<paste one comment I left on a Pull Request of my partner>
+I couldn't comment since my partner didn't finish her project in time
 
 **My partner's response:**
 <paste the answer>
