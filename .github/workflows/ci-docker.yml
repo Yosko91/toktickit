@@ -49,6 +49,18 @@ jobs:
         with:
           node-version: "24"
 
+      - name: Setup Python 3.14 (smoke test unit tests)
+        uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+        with:
+          python-version: "3.14"
+
+      - name: Deploy scripts - syntax and offline tests (no GCP access)
+        run: |
+          bash -n deploy/deploy.sh deploy/teardown.sh deploy/release.sh
+          bash deploy/tests/test_deploy_stub.sh
+          bash deploy/tests/test_release_stub.sh
+          python3 -m unittest discover -s deploy/tests -p 'test_smoke.py'
+
       - name: Backend - migrate, seed and test (Vitest + Supertest)
         working-directory: ./server
         env:
