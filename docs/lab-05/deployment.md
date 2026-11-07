@@ -62,3 +62,25 @@ npm test                        # 72 frontend tests
 npm run dev                     # web app on http://localhost:5173
 npm run build                   # production build in client/dist
 ```
+
+## 4. Docker (local)
+
+`Dockerfile` builds one image in three stages: the web app (Vite build), the server
+(`npm ci` + `prisma generate`) and a small runtime stage that runs as the `node` user.
+`.dockerignore` sends only `client/` and `server/` to the build, without `node_modules`,
+`.env` files, uploads or tests.
+
+`docker-compose.yml` runs PostgreSQL, a one-shot `migrate` service (migrate + seed, same
+image) and the app on http://localhost:3000.
+
+```bash
+git clone https://github.com/Yosko91/toktickit.git
+cd toktickit
+cp .env.example .env        # change the placeholder passwords
+docker compose up --build   # db, then migrate + seed, then app
+# check: http://localhost:3000/api/ready -> {"status":"ready","db":"connected"}
+docker compose down         # add -v to also delete the local database volume
+```
+
+The CI job does the same from its fresh checkout on every Pull Request (step
+"Fresh clone runs with .env.example values").
