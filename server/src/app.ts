@@ -1,3 +1,5 @@
+import fs from "node:fs";
+import path from "node:path";
 import express from "express";
 import cors from "cors";
 import cookieParser from "cookie-parser";
@@ -11,6 +13,7 @@ import { adminUsersRouter } from "./routes/adminUsers.js";
 import { attachmentsRouter } from "./routes/attachments.js";
 import { dashboardRouter } from "./routes/dashboard.js";
 import { UnsupportedAttachmentTypeError } from "./services/attachmentStorage.js";
+import { getPrisma } from "./prisma.js";
 
 // The client origin must be named explicitly rather than reflected, because a
 // wildcard origin is not allowed together with credentials, and the session
@@ -32,6 +35,17 @@ export function createApp() {
     });
   });
 
+  // Lab 5 - readiness: the app can reach the database (used by the smoke test).
+  app.get("/api/ready", async (_req, res) => {
+    try {
+      await getPrisma().$queryRaw`SELECT 1`;
+      res.status(200).json({ status: "ready", db: "connected" });
+    } catch (err) {
+      console.error("[GET /api/ready]", err);
+      res.status(503).json({ status: "not ready", db: "disconnected" });
+    }
+  });
+
   app.use("/api/auth", authRouter);
   app.use("/api/categories", categoriesRouter);
   app.use("/api/related-systems", relatedSystemsRouter);
@@ -40,6 +54,17 @@ export function createApp() {
   app.use("/api/admin/users", adminUsersRouter);
   app.use("/api/attachments", attachmentsRouter);
   app.use("/api/dashboard", dashboardRouter);
+
+  // Lab 5: in the Docker image the built React app is served by this server, so
+  // UI and API share one URL. Not set in local dev (Vite serves the UI).
+  const CLIENT_DIST_DIR = process.env.CLIENT_DIST_DIR;
+  if (CLIENT_DIST_DIR && fs.existsSync(path.join(CLIENT_DIST_DIR, "index.html"))) {
+    app.use(express.static(CLIENT_DIST_DIR));
+    // React Router pages (/login, /tickets/12...) all load index.html.
+    app.get(/^\/(?!api(\/|$)).*/, (_req, res) => {
+      res.sendFile(path.join(CLIENT_DIST_DIR, "index.html"));
+    });
+  }
 
   // BR-22/BR-23 (Lab 2): multer surfaces attachment type/size failures as errors
   // rather than calling next() with a handled response, so they are mapped

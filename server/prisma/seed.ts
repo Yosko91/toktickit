@@ -29,6 +29,15 @@ const RELATED_SYSTEM_NAMES = [
  */
 const DEV_PASSWORD = "TokTick!2026";
 
+// Lab 5: on GCP the seed runs in the migration job on every release. There the
+// password comes from Secret Manager (SEED_PASSWORD), is never printed, and
+// accounts that already exist are left as they are (no password reset).
+const IS_PRODUCTION = process.env.NODE_ENV === "production";
+const SEED_PASSWORD = process.env.SEED_PASSWORD || (IS_PRODUCTION ? "" : DEV_PASSWORD);
+if (!SEED_PASSWORD) {
+  throw new Error("SEED_PASSWORD must be set when NODE_ENV=production");
+}
+
 interface SeedUser {
   name: string;
   email: string;
@@ -325,7 +334,7 @@ async function main() {
   // BR-40: the migration gave existing accounts a placeholder hash that no
   // password can produce. The seed is what actually makes them usable, by
   // setting the documented development password on every seeded account.
-  const passwordHash = await hashPassword(DEV_PASSWORD);
+  const passwordHash = await hashPassword(SEED_PASSWORD);
 
   for (const user of USERS) {
     const data = {
@@ -337,7 +346,7 @@ async function main() {
     };
     await prisma.user.upsert({
       where: { email: user.email },
-      update: data,
+      update: IS_PRODUCTION ? {} : data,
       create: { ...data, email: user.email },
     });
   }
@@ -420,8 +429,8 @@ async function main() {
 
   console.log(
     `Seed complete - ${users} users (${requesters} requesters, ${staff} IT staff, ${admins} administrators), ` +
-      `${tickets} tickets, ${comments} public comments, ${notes} internal notes, ${actions} actions taken. ` +
-      `Development password for every seeded account: ${DEV_PASSWORD}`
+      `${tickets} tickets, ${comments} public comments, ${notes} internal notes, ${actions} actions taken.` +
+      (SEED_PASSWORD === DEV_PASSWORD ? ` Development password for every seeded account: ${DEV_PASSWORD}` : "")
   );
 }
 

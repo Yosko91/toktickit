@@ -61,12 +61,20 @@ attachmentsRouter.get("/:id/download", async (req, res) => {
       return;
     }
 
-    const filePath = attachmentFilePath(attachment.ticketId, attachment.storedFilename);
     res.setHeader("Content-Type", attachment.mimeType);
     res.setHeader(
       "Content-Disposition",
       `attachment; filename="${encodeURIComponent(attachment.originalName)}"`
     );
+
+    const content = await getPrisma().attachmentContent.findUnique({ where: { attachmentId: id } });
+    if (content) {
+      res.status(200).send(Buffer.from(content.data));
+      return;
+    }
+
+    // Files uploaded before Lab 5 are still on the local disk.
+    const filePath = attachmentFilePath(attachment.ticketId, attachment.storedFilename);
     res.sendFile(filePath, (err) => {
       if (err && !res.headersSent) {
         console.error("[download attachment]", err);

@@ -20,9 +20,8 @@ const GENERIC_LOGIN_FAILURE = "Invalid email or password";
 const COOKIE_OPTIONS = {
   httpOnly: true as const,
   sameSite: "lax" as const,
-  // Secure is deliberately off: the lab runs over plain HTTP on localhost. It
-  // must be switched on for any real deployment (api-spec.md section 1).
-  secure: false,
+  // Off on plain HTTP localhost. Lab 5: COOKIE_SECURE=true on Cloud Run (HTTPS).
+  secure: process.env.COOKIE_SECURE === "true",
   path: "/",
   maxAge: SESSION_TTL_MS,
 };
