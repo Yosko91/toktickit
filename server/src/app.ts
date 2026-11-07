@@ -35,6 +35,11 @@ export function createApp() {
     });
   });
 
+  // Lab 5 - R-08: the commit the running image was built from.
+  app.get("/api/version", (_req, res) => {
+    res.status(200).json({ commit: process.env.COMMIT_SHA || "local" });
+  });
+
   // Lab 5 - readiness: the app can reach the database (used by the smoke test).
   app.get("/api/ready", async (_req, res) => {
     try {
