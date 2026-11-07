@@ -84,3 +84,17 @@ docker compose down         # add -v to also delete the local database volume
 
 The CI job does the same from its fresh checkout on every Pull Request (step
 "Fresh clone runs with .env.example values").
+
+## 5. CI on Pull Requests
+
+`.github/workflows/ci-docker.yml` runs on every Pull Request into `main` and into
+`lab*-staging`. The job `test-and-docker` starts a throw-away PostgreSQL, then:
+
+1. backend: `npm ci`, `prisma generate`, `prisma migrate deploy`, seed, `npm test`;
+2. frontend: `npm ci`, `npm test`, `npm run build`;
+3. builds the production Docker image;
+4. runs the fresh clone with only the `.env.example` values (`docker compose up`) and
+   checks `/api/ready`, `/` and `/api/categories`.
+
+A failing test makes the job red. The ruleset on `main` requires this check, so a red
+Pull Request cannot be merged (section 8).
