@@ -1,0 +1,11 @@
+# Only client/ and server/ are sent to the Docker build.
+*
+!client/
+!server/
+**/node_modules
+**/dist
+**/.env
+**/*.log
+server/uploads
+server/tests
+client/tests
