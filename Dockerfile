@@ -35,6 +35,9 @@ ENV NODE_ENV=production \
 # "prisma migrate deploy" and the seed from this same image.
 COPY --from=server-build --chown=node:node /app/server ./
 COPY --from=client-build /app/client/dist /app/client/dist
+# Lab 5 (R-08): commit the image was built from, returned by GET /api/version.
+ARG COMMIT_SHA=local
+ENV COMMIT_SHA=$COMMIT_SHA
 # Do not run as root.
 USER node
 EXPOSE 3000

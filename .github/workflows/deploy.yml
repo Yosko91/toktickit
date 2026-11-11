@@ -154,7 +154,7 @@ jobs:
         run: |
           gcloud auth configure-docker "$REGION-docker.pkg.dev" --quiet
           IMAGE="$REGION-docker.pkg.dev/$PROJECT_ID/toktickit/toktickit:$IMAGE_TAG"
-          docker build --tag "$IMAGE" .
+          docker build --build-arg COMMIT_SHA="$IMAGE_TAG" --tag "$IMAGE" .
           docker push "$IMAGE"
 
       # ------------------------------------------------------------------------
@@ -181,6 +181,13 @@ jobs:
           SMOKE_PASSWORD: ${{ secrets.SMOKE_PASSWORD }}
         run: python3 deploy/smoke_test.py "$SERVICE_URL"
 
+      # R-08: the live service must report the commit that was just deployed.
+      - name: Check the running commit
+        run: |
+          RUNNING="$(curl --fail --silent "$SERVICE_URL/api/version" | python3 -c 'import json,sys; print(json.load(sys.stdin)["commit"])')"
+          echo "Running commit: $RUNNING"
+          test "$RUNNING" = "$IMAGE_TAG"
+
       # ------------------------------------------------------------------------
       # 7. Deployment summary shown on the workflow run page
       # ------------------------------------------------------------------------
@@ -190,6 +197,7 @@ jobs:
             echo '### TokTickIT demo deployment'
             echo "- Commit image tag: \`$IMAGE_TAG\`"
             echo "- Digest: \`$DEPLOYED_IMAGE\`"
+            echo "- Running commit (GET /api/version): \`$IMAGE_TAG\`"
             echo "- Rollback: $ROLLBACK"
             echo "- URL: $SERVICE_URL"
             echo '- Smoke test: passed (health, readiness/DB, HTML, categories).'

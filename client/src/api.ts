@@ -233,6 +233,11 @@ export function changePassword(currentPassword: string, newPassword: string): Pr
 
 // --- Reference data ---
 
+// Lab 5 - the commit of the running release (footer).
+export function getVersion(): Promise<{ commit: string }> {
+  return request<{ commit: string }>("/api/version");
+}
+
 export function getCategories(): Promise<Category[]> {
   return request<Category[]>("/api/categories");
 }
