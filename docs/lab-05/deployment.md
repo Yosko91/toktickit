@@ -113,3 +113,96 @@ Our changes to the kit: one seed secret `toktickit-seed-password` instead of the
 passwords (no `--demo` flag), `COOKIE_SECURE=true` on the service, Cloud SQL storage
 auto-increase off and no automatic backups (cost). `.gitattributes` keeps `*.sh` files with LF
 line endings, so they also run when the repository is cloned on Windows.
+
+## 7. GCP project and resources
+
+One project is used for Lab 5, Lab 6, Lab 7 and the Final Project. It was created with a GCP
+Free Trial account. Heloise has the Editor role in IAM.
+
+| Item | Name |
+|---|---|
+| Project ID | `cpe334-toktickit-ym` (number 919912745977) |
+| Region | `asia-southeast1` (Singapore) |
+| Budget alert | `cpe334-toktickit-ym budget`, 20 EUR, e-mail at 50 %, 90 % and 100 % (alerts only) |
+| Artifact Registry | repository `toktickit`, image `asia-southeast1-docker.pkg.dev/cpe334-toktickit-ym/toktickit/toktickit` |
+| Cloud SQL | instance `toktickit-pg` (PostgreSQL 16, `db-f1-micro`, 10 GB SSD, auto-increase off), database `toktickit`, user `toktickit` |
+| Secret Manager | `toktickit-database-url`, `toktickit-seed-password` |
+| Cloud Run service | `toktickit` (min 0, max 3 instances, 512 MiB, port 3000, public) |
+| Cloud Run job | `toktickit-migrate` (`prisma migrate deploy` + seed) |
+| Runtime service account | `toktickit-runner` (Cloud SQL client, reads only our two secrets) |
+| Deployer service account | `toktickit-deployer` (Cloud Run developer, Artifact Registry writer on `toktickit`, can act as `toktickit-runner`) |
+| Workload Identity Federation | pool `github-actions`, provider `github-main` |
+| GitHub environment | `demo` (only `main` can deploy), variables `GCP_PROJECT_ID`, `GCP_REGION`, `WIF_PROVIDER`, `WIF_SERVICE_ACCOUNT` |
+
+The provider `github-main` only accepts a GitHub token when all of these are true: repository id
+1332659613, owner id 198549427, ref `refs/heads/main`, workflow `deploy.yml` and subject
+`repo:Yosko91@198549427/toktickit@1332659613:environment:demo`. So a Pull Request or a fork cannot
+deploy. There is no service account key anywhere.
+
+First deploy (done once, from a clean clone, with an account that owns the project):
+
+```bash
+gcloud config set project cpe334-toktickit-ym
+DRY_RUN=1 PROJECT_ID=cpe334-toktickit-ym bash deploy/deploy.sh   # read the commands first
+PROJECT_ID=cpe334-toktickit-ym bash deploy/deploy.sh
+```
+
+## 8. Merge gate on main
+
+Ruleset `main - Lab 5 merge gate` (Settings > Rules > Rulesets), enforcement Active, empty bypass
+list:
+
+- require a Pull Request with 1 approval (the author cannot approve their own Pull Request);
+- require the status check `test-and-docker` to pass, and the branch to be up to date;
+- block force pushes and deletion of `main`.
+
+Proof: Pull Request #69 from the temporary branch `temp/lab5-failing-check` has one failing test,
+the check is red and GitHub does not allow the merge. It is closed without merging.
+
+## 9. Release procedure
+
+Only `main` deploys, so every merge into `main` is a release.
+
+1. Create an Issue with the label `lab5` (later labs: their own label) and add it to the board.
+2. Create a branch `feature/...` from `lab5-staging`, commit, push, open a Pull Request into
+   `lab5-staging`. CI runs. The teammate reviews with a specific comment and approves. Merge.
+3. Open the release Pull Request `lab5-staging` into `main`. CI runs again. The teammate approves.
+   Merge (merge commit).
+4. The merge starts `.github/workflows/deploy.yml` (Actions > Deploy demo):
+   CI again, then `docker build --build-arg COMMIT_SHA=<full SHA>` and push with the tag = full
+   commit SHA, `deploy/release.sh` (image digest, migration job, Cloud Run update by digest),
+   smoke test, and the check that `/api/version` returns the same SHA.
+5. Check the result.
+
+How to find the commit that is running:
+
+- in the browser: the footer of every page shows `TokTickIT release <short SHA>`;
+- `curl https://<service URL>/api/version` returns the full SHA;
+- the Summary of the Deploy demo run shows the image tag (SHA) and the digest;
+- `gcloud run services describe toktickit --region asia-southeast1 --format="value(status.latestReadyRevisionName,spec.template.spec.containers[0].image)"`
+  gives the revision and the image digest, and
+  `gcloud artifacts docker images list asia-southeast1-docker.pkg.dev/cpe334-toktickit-ym/toktickit/toktickit --include-tags`
+  links this digest to the SHA tag.
+
+## 10. Rollback
+
+Actions > Deploy demo > Run workflow on `main`, and enter in `image_tag` the full 40-character SHA
+of an earlier release. Tests, build and migration are skipped, the old image is deployed by
+digest and the smoke test runs. To come back, run it again with the SHA of the newer release.
+The database is not rolled back, so migrations must stay additive (the Lab 5 migration only adds
+the table `AttachmentContent`).
+
+## 11. Cost
+
+Cloud SQL is paid for every hour it exists (about 10 to 15 USD a month for `db-f1-micro`).
+Cloud Run scales to zero when nobody uses it. Ways to keep the cost low:
+
+```bash
+# pause the database when nobody needs the app (the app is down while paused)
+gcloud sql instances patch toktickit-pg --activation-policy=NEVER
+# start it again
+gcloud sql instances patch toktickit-pg --activation-policy=ALWAYS
+# at the end of the course: delete everything
+DRY_RUN=1 PROJECT_ID=cpe334-toktickit-ym bash deploy/teardown.sh
+PROJECT_ID=cpe334-toktickit-ym bash deploy/teardown.sh
+```
