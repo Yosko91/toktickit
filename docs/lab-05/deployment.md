@@ -98,3 +98,18 @@ The CI job does the same from its fresh checkout on every Pull Request (step
 
 A failing test makes the job red. The ruleset on `main` requires this check, so a red
 Pull Request cannot be merged (section 8).
+
+## 6. Deploy scripts (from the starter kit)
+
+| File | What it does |
+|---|---|
+| `deploy/deploy.sh` | One-time setup and first deploy: APIs, Artifact Registry, Cloud SQL, database user, secrets, runtime service account, migration job, Cloud Run service. Safe to run again (it reuses what exists). Preview with `DRY_RUN=1`. |
+| `deploy/release.sh` | Used by `deploy.yml`: checks that the image exists, reads its digest, runs the migration job, updates the service by digest. |
+| `deploy/smoke_test.py` | Read-only checks of the live URL: `/api/health`, `/api/ready` (database), `/` (HTML), `/api/categories` (seeded data). |
+| `deploy/teardown.sh` | Deletes the cloud resources at the end of the course. |
+| `deploy/tests/` | Offline tests of the three scripts (fake `gcloud`, no GCP access). CI runs them. |
+
+Our changes to the kit: one seed secret `toktickit-seed-password` instead of the admin and demo
+passwords (no `--demo` flag), `COOKIE_SECURE=true` on the service, Cloud SQL storage
+auto-increase off and no automatic backups (cost). `.gitattributes` keeps `*.sh` files with LF
+line endings, so they also run when the repository is cloned on Windows.
