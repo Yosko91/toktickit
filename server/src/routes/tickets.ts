@@ -15,11 +15,9 @@ import {
   MAX_ACTIVE_ATTACHMENTS_PER_TICKET,
   MAX_ATTACHMENT_SIZE_BYTES,
   UnsupportedAttachmentTypeError,
-  deleteAttachmentFileQuietly,
   generateStoredFilename,
   isAllowedAttachment,
   sanitizeOriginalName,
-  saveAttachmentFile,
 } from "../services/attachmentStorage.js";
 import {
   REQUESTER_TICKET_INCLUDE,
@@ -187,28 +185,22 @@ ticketsRouter.post("/:id/attachments", upload.single("file"), async (req, res) =
       return;
     }
 
-    const storedFilename = generateStoredFilename(req.file.originalname);
-    await saveAttachmentFile(ticketId, storedFilename, req.file.buffer);
+    // Lab 5: the bytes are saved with the metadata in one transaction (R-04).
+    const [attachment] = await prisma.$transaction([
+      prisma.attachment.create({
+        data: {
+          ticketId,
+          originalName: sanitizeOriginalName(req.file.originalname),
+          storedFilename: generateStoredFilename(req.file.originalname),
+          mimeType: req.file.mimetype,
+          sizeBytes: req.file.size,
+          content: { create: { data: req.file.buffer } },
+        },
+      }),
+      prisma.ticket.update({ where: { id: ticketId }, data: { updatedAt: new Date() } }),
+    ]);
 
-    try {
-      const [attachment] = await prisma.$transaction([
-        prisma.attachment.create({
-          data: {
-            ticketId,
-            originalName: sanitizeOriginalName(req.file.originalname),
-            storedFilename,
-            mimeType: req.file.mimetype,
-            sizeBytes: req.file.size,
-          },
-        }),
-        prisma.ticket.update({ where: { id: ticketId }, data: { updatedAt: new Date() } }),
-      ]);
-
-      res.status(201).json(shapeAttachment(attachment));
-    } catch (dbErr) {
-      await deleteAttachmentFileQuietly(ticketId, storedFilename);
-      throw dbErr;
-    }
+    res.status(201).json(shapeAttachment(attachment));
   } catch (err) {
     console.error("[POST /api/tickets/:id/attachments]", err);
     res.status(500).json({ error: "Unable to upload attachment" });

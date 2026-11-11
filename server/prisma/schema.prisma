@@ -154,8 +154,18 @@ model Attachment {
   removedReason  String?
   removedById    Int?
   removedBy      User?     @relation(fields: [removedById], references: [id])
+  content        AttachmentContent?
 
   @@index([ticketId])
+}
+
+// Lab 5 - R-04: the file bytes live in the database, not in the container, so
+// an attachment survives a Cloud Run restart and a redeploy. Own table so that
+// loading a ticket never loads the files.
+model AttachmentContent {
+  attachmentId Int        @id
+  attachment   Attachment @relation(fields: [attachmentId], references: [id], onDelete: Cascade)
+  data         Bytes
 }
 
 // Lab 3 - BR-26/BR-27. Public Comments and Internal Notes are two models rather

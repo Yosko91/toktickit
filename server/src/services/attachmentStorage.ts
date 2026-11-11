@@ -1,5 +1,4 @@
 import { randomUUID } from "node:crypto";
-import fs from "node:fs/promises";
 import path from "node:path";
 
 // BR-22/BR-23/BR-24: fixed attachment limits from the Lab 2 handout.
@@ -64,25 +63,4 @@ function ticketUploadDir(ticketId: number): string {
 
 export function attachmentFilePath(ticketId: number, storedFilename: string): string {
   return path.join(ticketUploadDir(ticketId), storedFilename);
-}
-
-export async function saveAttachmentFile(
-  ticketId: number,
-  storedFilename: string,
-  buffer: Buffer
-): Promise<void> {
-  const dir = ticketUploadDir(ticketId);
-  await fs.mkdir(dir, { recursive: true });
-  await fs.writeFile(path.join(dir, storedFilename), buffer);
-}
-
-// Best-effort cleanup if the DB write that should follow a file write fails.
-// Never throws - a leftover orphan file is a harmless, documented limitation
-// (tests.md section 7), losing the Attachment's own error is not.
-export async function deleteAttachmentFileQuietly(ticketId: number, storedFilename: string): Promise<void> {
-  try {
-    await fs.unlink(attachmentFilePath(ticketId, storedFilename));
-  } catch {
-    // ignored - see comment above
-  }
 }
