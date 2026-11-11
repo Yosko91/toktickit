@@ -116,15 +116,17 @@ line endings, so they also run when the repository is cloned on Windows.
 
 ## 7. GCP project and resources
 
-One project is used for Lab 5, Lab 6, Lab 7 and the Final Project. It was created with a GCP
-Free Trial account. Heloise has the Editor role in IAM.
+One project is used for Lab 5, Lab 6, Lab 7 and the Final Project. Heloise created it with her
+GCP Free Trial account (USD 300 credit, never upgraded) and added Yohann in IAM with the Editor
+role. The first setup was done in a project on Yohann's account (`cpe334-toktickit-ym`); it was
+moved here because that account had almost no credit left, and the old project was deleted.
 
 | Item | Name |
 |---|---|
-| Project ID | `cpe334-toktickit-ym` (number 919912745977) |
+| Project ID | `toktickit-heloise` (number 808244962064) |
 | Region | `asia-southeast1` (Singapore) |
-| Budget alert | `cpe334-toktickit-ym budget`, 20 EUR, e-mail at 50 %, 90 % and 100 % (alerts only) |
-| Artifact Registry | repository `toktickit`, image `asia-southeast1-docker.pkg.dev/cpe334-toktickit-ym/toktickit/toktickit` |
+| Billing | Heloise's Free Trial billing account (credit only, no paid upgrade) |
+| Artifact Registry | repository `toktickit`, image `asia-southeast1-docker.pkg.dev/toktickit-heloise/toktickit/toktickit` |
 | Cloud SQL | instance `toktickit-pg` (PostgreSQL 16, `db-f1-micro`, 10 GB SSD, auto-increase off), database `toktickit`, user `toktickit` |
 | Secret Manager | `toktickit-database-url`, `toktickit-seed-password` |
 | Cloud Run service | `toktickit` (min 0, max 3 instances, 512 MiB, port 3000, public) |
@@ -142,9 +144,9 @@ deploy. There is no service account key anywhere.
 First deploy (done once, from a clean clone, with an account that owns the project):
 
 ```bash
-gcloud config set project cpe334-toktickit-ym
-DRY_RUN=1 PROJECT_ID=cpe334-toktickit-ym bash deploy/deploy.sh   # read the commands first
-PROJECT_ID=cpe334-toktickit-ym bash deploy/deploy.sh
+gcloud config set project toktickit-heloise
+DRY_RUN=1 PROJECT_ID=toktickit-heloise bash deploy/deploy.sh   # read the commands first
+PROJECT_ID=toktickit-heloise bash deploy/deploy.sh
 ```
 
 ## 8. Merge gate on main
@@ -181,7 +183,7 @@ How to find the commit that is running:
 - the Summary of the Deploy demo run shows the image tag (SHA) and the digest;
 - `gcloud run services describe toktickit --region asia-southeast1 --format="value(status.latestReadyRevisionName,spec.template.spec.containers[0].image)"`
   gives the revision and the image digest, and
-  `gcloud artifacts docker images list asia-southeast1-docker.pkg.dev/cpe334-toktickit-ym/toktickit/toktickit --include-tags`
+  `gcloud artifacts docker images list asia-southeast1-docker.pkg.dev/toktickit-heloise/toktickit/toktickit --include-tags`
   links this digest to the SHA tag.
 
 ## 10. Rollback
@@ -203,6 +205,6 @@ gcloud sql instances patch toktickit-pg --activation-policy=NEVER
 # start it again
 gcloud sql instances patch toktickit-pg --activation-policy=ALWAYS
 # at the end of the course: delete everything
-DRY_RUN=1 PROJECT_ID=cpe334-toktickit-ym bash deploy/teardown.sh
-PROJECT_ID=cpe334-toktickit-ym bash deploy/teardown.sh
+DRY_RUN=1 PROJECT_ID=toktickit-heloise bash deploy/teardown.sh
+PROJECT_ID=toktickit-heloise bash deploy/teardown.sh
 ```
