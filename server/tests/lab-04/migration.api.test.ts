@@ -12,12 +12,14 @@ const app = createApp();
 describe("Lab 4 migration and backfill", () => {
   let staffId: number;
   let migratedAt: Date;
+  let legacyTickets: number;
 
   beforeAll(async () => {
     staffId = (await createTestStaff()).id;
     const rows = await getPrisma().$queryRaw<{ finished_at: Date }[]>`
       SELECT finished_at FROM _prisma_migrations WHERE migration_name LIKE '%lab4_actions_taken' LIMIT 1`;
     migratedAt = rows[0]!.finished_at;
+    legacyTickets = await getPrisma().ticket.count({ where: { createdAt: { lt: migratedAt } } });
   });
 
   afterAll(async () => {
@@ -25,7 +27,10 @@ describe("Lab 4 migration and backfill", () => {
   });
 
   // MIG-01 - AC-21, BR-35
-  it("gave every legacy resolved or closed ticket a resolvedAt, and every ticket a version", async () => {
+  // Lab 5: a fresh database (CI) has no ticket older than the Lab 4 migration,
+  // so MIG-01 and MIG-02 are skipped there. They run on a migrated database.
+  it("gave every legacy resolved or closed ticket a resolvedAt, and every ticket a version", async (ctx) => {
+    if (legacyTickets === 0) ctx.skip();
     const prisma = getPrisma();
     const legacyResolved = await prisma.ticket.count({
       where: { createdAt: { lt: migratedAt }, currentStatus: { in: ["RESOLVED", "CLOSED"] } },
@@ -41,7 +46,8 @@ describe("Lab 4 migration and backfill", () => {
   });
 
   // MIG-02 - AC-21, BR-34
-  it("still serves a legacy ticket with no actions and no history", async () => {
+  it("still serves a legacy ticket with no actions and no history", async (ctx) => {
+    if (legacyTickets === 0) ctx.skip();
     const legacy = await getPrisma().ticket.findFirstOrThrow({
       where: { createdAt: { lt: migratedAt }, actionsTaken: { none: {} }, statusHistory: { none: {} } },
       include: { attachments: true, publicComments: true },

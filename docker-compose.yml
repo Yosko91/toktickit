@@ -1,0 +1,44 @@
+# Local run with a database: docker compose up --build
+# Then open http://localhost:3000 (UI and API in the same container).
+# Values come from .env (copy .env.example). The defaults below are only for local use.
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-toktickit}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-toktickit}
+      POSTGRES_DB: ${POSTGRES_DB:-toktickit}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-toktickit} -d ${POSTGRES_DB:-toktickit}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  # Same image as the app: migrate, then seed. Like the Cloud Run migration job.
+  migrate:
+    build: .
+    restart: "no"
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER:-toktickit}:${POSTGRES_PASSWORD:-toktickit}@db:5432/${POSTGRES_DB:-toktickit}?schema=public
+      SEED_PASSWORD: ${SEED_PASSWORD:?Set SEED_PASSWORD in .env}
+    command: ["sh", "-c", "npx prisma migrate deploy && npx tsx prisma/seed.ts"]
+
+  app:
+    build: .
+    restart: unless-stopped
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER:-toktickit}:${POSTGRES_PASSWORD:-toktickit}@db:5432/${POSTGRES_DB:-toktickit}?schema=public
+      COOKIE_SECURE: "false"
+    ports:
+      - "3000:3000"
+
+volumes:
+  postgres_data:

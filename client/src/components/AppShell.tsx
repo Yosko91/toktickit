@@ -1,5 +1,6 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { NavLink, Outlet, useNavigate } from "react-router-dom";
+import { getVersion } from "../api";
 import type { Role } from "../api";
 import { useAuth } from "../context/AuthContext";
 import { homeFor } from "./RequireAuth";
@@ -54,6 +55,14 @@ export function AppShell() {
   const [navOpen, setNavOpen] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const navigate = useNavigate();
+  const [release, setRelease] = useState<string | null>(null);
+
+  // Lab 5: shows which commit is running, so a release can be checked in the browser.
+  useEffect(() => {
+    getVersion()
+      .then((v) => setRelease(v.commit.slice(0, 7)))
+      .catch(() => undefined);
+  }, []);
 
   const items = user ? navItemsFor(user.role) : [];
 
@@ -151,6 +160,11 @@ export function AppShell() {
           <Outlet />
         </div>
       </main>
+      {release && (
+        <footer style={{ textAlign: "center", fontSize: 12, color: "var(--zen-text-muted)", padding: "12px 0 20px" }}>
+          TokTickIT release {release}
+        </footer>
+      )}
     </div>
   );
 }

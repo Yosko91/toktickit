@@ -1,0 +1,96 @@
+# CI for every Pull Request into main or a lab staging branch (R-05).
+# The job id "test-and-docker" is the required check in the ruleset (R-06),
+# so do not rename it. deploy.yml reuses this workflow (workflow_call).
+name: CI & Docker Build
+
+on:
+  workflow_call:
+  pull_request:
+    branches: [main, "lab*-staging"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test-and-docker:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    # Throw-away database for the tests only (not a real secret).
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: toktickit
+          POSTGRES_PASSWORD: toktickit
+          POSTGRES_DB: toktickit
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
+    steps:
+      # Actions are pinned to a full commit SHA (Dependabot proposes updates).
+      - name: Checkout repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Setup Node.js 24
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: "24"
+
+      - name: Setup Python 3.14 (smoke test unit tests)
+        uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+        with:
+          python-version: "3.14"
+
+      - name: Deploy scripts - syntax and offline tests (no GCP access)
+        run: |
+          bash -n deploy/deploy.sh deploy/teardown.sh deploy/release.sh
+          bash deploy/tests/test_deploy_stub.sh
+          bash deploy/tests/test_release_stub.sh
+          python3 -m unittest discover -s deploy/tests -p 'test_smoke.py'
+
+      - name: Backend - migrate, seed and test (Vitest + Supertest)
+        working-directory: ./server
+        env:
+          DATABASE_URL: postgresql://toktickit:toktickit@localhost:5432/toktickit?schema=public
+        run: |
+          npm ci
+          npx prisma generate
+          npx prisma migrate deploy
+          npm run prisma:seed
+          npm test
+
+      - name: Frontend - test and production build
+        working-directory: ./client
+        run: |
+          npm ci
+          npm test
+          npm run build
+
+      - name: Build the production Docker image
+        run: docker build -t toktickit:ci .
+
+      # C-03: this checkout is a fresh clone. Only the .env.example values are used.
+      - name: Fresh clone runs with .env.example values
+        run: |
+          cp .env.example .env
+          docker compose up -d --build
+          curl --fail --silent --retry 20 --retry-delay 3 --retry-all-errors http://localhost:3000/api/ready
+          echo
+          curl --fail --silent http://localhost:3000/ | grep -qi "<html"
+          curl --fail --silent http://localhost:3000/api/categories
+          echo
+          docker compose logs migrate | tail -n 3
+          docker compose down -v
