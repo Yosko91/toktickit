@@ -230,7 +230,7 @@ export function CreateTicket() {
         <ReadOnlyField
           label="Requester"
           value={user?.name}
-          hint="Populated from the Development Requester selected before entering the application."
+          hint="Filled in from the account you are signed in with."
           className="zen-field--full"
         />
 
